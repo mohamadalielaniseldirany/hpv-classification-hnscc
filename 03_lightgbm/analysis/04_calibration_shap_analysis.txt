@@ -1,0 +1,731 @@
+Analysis of Calibration, Probability Distributions, Feature Importance, and SHAP Results
+
+This file continues the interpretation of the three LightGBM experiments:
+
+1. Clinical-only
+2. PET-only
+3. Clinical + PET combined
+
+The previous analysis focused mostly on validation and test metrics such as
+ROC-AUC, accuracy, sensitivity, and specificity. This file focuses on the other
+outputs produced by the scripts:
+
+- calibration table
+- Expected Calibration Error
+- probability distribution
+- feature importance
+- SHAP summary
+- SHAP heatmap
+- SHAP dependence plot
+
+
+1. How to understand these outputs
+
+Calibration table:
+The calibration table groups patients by predicted probability. For example, the
+bin [0.9, 1.0] contains patients that the model predicted with 90 percent to 100
+percent probability of being HPV positive.
+
+Ideal calibration:
+The mean predicted probability should be close to the observed HPV positive rate.
+For example, if a bin has mean predicted probability 0.90, then around 90 percent
+of patients in that bin should truly be HPV positive.
+
+Expected Calibration Error:
+Expected Calibration Error, or ECE, summarizes the calibration table into one
+number. Lower is better. The ideal value is 0.0.
+
+Probability distribution:
+This plot shows where the predicted probabilities are located for real HPV
+negative and real HPV positive patients.
+
+Ideal probability distribution:
+HPV negative patients should be close to 0.0, and HPV positive patients should
+be close to 1.0. A good model has less overlap between the two groups.
+
+Feature importance:
+Feature importance shows which variables LightGBM used most when building its
+trees. In these scripts, gain importance is the main value. Gain means how much
+a feature helped reduce model error when it was used.
+
+Important note:
+Feature importance does not prove that a feature causes HPV status. It only means
+the model found that feature useful for prediction.
+
+SHAP summary:
+SHAP explains how much each feature pushes predictions up or down. In this
+project, pushing up means increasing the HPV-positive score. Pushing down means
+decreasing the HPV-positive score.
+
+SHAP heatmap:
+The SHAP heatmap shows feature effects patient by patient. It helps show whether
+the same features affect many patients, or whether different patients are
+controlled by different features.
+
+SHAP dependence:
+The SHAP dependence plot focuses on one important feature and shows how that
+feature changes the model prediction.
+
+Ideal SHAP result:
+There is no perfect SHAP number. The goal is to see whether the model is using
+reasonable and stable patterns, and whether a few features are dominating too
+strongly.
+
+
+2. Clinical-only experiment
+
+Input:
+The clinical-only model used 8 clinical features:
+
+- CenterID
+- Age
+- Gender
+- Tobacco Consumption
+- Alcohol Consumption
+- Performance Status
+- Treatment
+- M-stage
+
+
+2.1 Clinical-only calibration table and ECE
+
+Validation ECE:
+0.071
+
+Test ECE:
+0.085
+
+Ideal ECE:
+0.000
+
+Interpretation:
+The clinical-only model had fairly good calibration, but it was not perfect. The
+test ECE was slightly worse than validation, which means the probabilities were a
+little less reliable on the test set.
+
+Validation calibration details:
+
+- In the [0.9, 1.0] bin, there were 67 patients.
+- The mean predicted probability was 0.993.
+- The observed HPV positive rate was 0.955.
+- The gap was only 0.038.
+
+This is good for the high-probability group. Most patients that the model called
+very likely HPV positive were truly HPV positive.
+
+However, some smaller bins had large gaps. For example:
+
+- The [0.1, 0.2] bin had 1 patient.
+- Mean predicted probability was 0.134.
+- Observed HPV positive rate was 1.000.
+- Gap was 0.866.
+
+This means that one patient was predicted with low HPV-positive probability but
+was actually HPV positive. Because the bin had only 1 patient, the gap looks very
+large.
+
+Test calibration details:
+
+- In the [0.9, 1.0] bin, there were 67 patients.
+- The mean predicted probability was 0.994.
+- The observed HPV positive rate was 0.955.
+- The gap was 0.039.
+
+Again, the high-probability group was well calibrated.
+
+But the lower probability bins showed mistakes:
+
+- The [0.1, 0.2] bin had 4 patients with observed HPV positive rate 0.750.
+- The [0.2, 0.3] bin had 1 patient with observed HPV positive rate 1.000.
+
+This tells us that some true HPV positive patients received low probabilities.
+
+
+2.2 Clinical-only probability distribution
+
+Validation:
+
+- Actual HPV negative patients: 8
+- Mean predicted HPV-positive probability for negatives: 0.525
+- Negatives predicted below 0.5: 4
+- Negatives predicted above 0.5: 4
+- Actual HPV positive patients: 69
+- Mean predicted HPV-positive probability for positives: 0.968
+- Positives predicted below 0.5: 1
+- Positives predicted above 0.5: 68
+- Positives with probability at least 0.9: 64
+
+Test:
+
+- Actual HPV negative patients: 9
+- Mean predicted HPV-positive probability for negatives: 0.417
+- Negatives predicted below 0.5: 5
+- Negatives predicted above 0.5: 4
+- Actual HPV positive patients: 69
+- Mean predicted HPV-positive probability for positives: 0.945
+- Positives predicted below 0.5: 4
+- Positives predicted above 0.5: 65
+- Positives with probability at least 0.9: 64
+
+Interpretation:
+The clinical-only probability distribution was strong for HPV positive patients.
+Most true HPV positive patients were near probability 1.0.
+
+The weakness was the HPV negative group. In validation, half of the HPV negative
+patients were still predicted as HPV positive. In test, 4 out of 9 HPV negative
+patients were predicted as HPV positive.
+
+So the plot probably shows a clear cluster of HPV positive patients near 1.0,
+but also some HPV negative patients overlapping with that same high-probability
+region.
+
+
+2.3 Clinical-only feature importance
+
+All clinical features by LightGBM gain importance:
+
+Rank  Feature                Gain percent
+1     M-stage                   45.97%
+2     Age                       20.15%
+3     Tobacco Consumption       17.73%
+4     Alcohol Consumption        7.35%
+5     CenterID                   6.45%
+6     Performance Status         1.02%
+7     Treatment                  0.70%
+8     Gender                     0.63%
+
+Interpretation:
+M-stage was the most important feature by far. It represented about 46 percent of
+the total gain importance in the clinical-only model.
+
+Age and Tobacco Consumption were also important. Together, M-stage, Age, and
+Tobacco Consumption carried most of the model's useful clinical information.
+
+Treatment, Gender, and Performance Status had much smaller importance. This does
+not mean they are useless medically. It only means this LightGBM model used them
+less for prediction in this dataset.
+
+
+2.4 Clinical-only SHAP summary
+
+All clinical features by mean absolute SHAP value:
+
+Rank  Feature                Mean absolute SHAP
+1     M-stage                     1.777
+2     Tobacco Consumption         1.075
+3     Age                         0.991
+4     CenterID                    0.665
+5     Alcohol Consumption         0.635
+6     Performance Status          0.261
+7     Gender                      0.126
+8     Treatment                   0.116
+
+Interpretation:
+The SHAP summary confirms the feature importance result. M-stage had the largest
+effect on individual predictions. Tobacco Consumption and Age were also strong
+contributors.
+
+Feature importance tells us what the model used during tree building. SHAP tells
+us how strongly features changed patient-level predictions. Both methods point
+to M-stage as the main clinical driver.
+
+
+2.5 Clinical-only SHAP heatmap
+
+Interpretation:
+The SHAP heatmap shows that M-stage had a large effect across many test patients.
+Tobacco Consumption, Age, CenterID, and Alcohol Consumption also changed
+predictions, but not as strongly as M-stage.
+
+In simple terms, the heatmap suggests that the clinical-only model did not depend
+equally on all clinical features. It mainly used a few strong clinical signals,
+especially M-stage, then adjusted the probability using age and lifestyle-related
+features.
+
+
+2.6 Clinical-only SHAP dependence
+
+The SHAP dependence plot focused on:
+
+M-stage
+
+On the test set:
+
+- M0 patients: 66 patients, mean SHAP = +0.880
+- Missing M-stage patients: 12 patients, mean SHAP = -6.715
+
+Interpretation:
+For this trained model, M0 pushed the prediction toward HPV positive. Missing
+M-stage strongly pushed the prediction toward HPV negative.
+
+This does not mean missing M-stage medically causes HPV negativity. It means that
+inside this dataset and this trained model, missing M-stage behaved like a strong
+signal that lowered the HPV-positive score.
+ 
+
+3. PET-only experiment
+
+Input:
+The PET-only model used 107 PET radiomics features.
+
+
+3.1 PET-only calibration table and ECE
+
+Validation ECE:
+0.087
+
+Test ECE:
+0.130
+
+Ideal ECE:
+0.000
+
+Interpretation:
+The PET-only model had worse calibration than the clinical-only model, especially
+on the test set. The test ECE increased to 0.130, meaning the PET-only predicted
+probabilities were less reliable.
+
+Validation calibration details:
+
+- In the [0.9, 1.0] bin, there were 67 patients.
+- Mean predicted probability was 0.995.
+- Observed HPV positive rate was 0.955.
+- Gap was 0.040.
+
+This high-probability bin was not bad. But the smaller bins had unstable and
+large gaps, because they contained very few patients.
+
+Test calibration details:
+
+- In the [0.9, 1.0] bin, there were 70 patients.
+- Mean predicted probability was 0.997.
+- Observed HPV positive rate was 0.900.
+- Gap was 0.097.
+
+This is important. The PET-only model put 70 out of 78 test patients in the very
+high probability bin, but only 90 percent of them were truly HPV positive. That
+means the model was too confident in predicting HPV positive.
+
+The biggest warning sign:
+
+- The [0.0, 0.1] test bin had 1 patient.
+- Mean predicted probability was 0.027.
+- Observed HPV positive rate was 1.000.
+- Gap was 0.973.
+
+This means one true HPV positive patient was predicted as almost certainly HPV
+negative.
+
+
+3.2 PET-only probability distribution
+
+Validation:
+
+- Actual HPV negative patients: 8
+- Mean predicted HPV-positive probability for negatives: 0.816
+- Negatives predicted below 0.5: 1
+- Negatives predicted above 0.5: 7
+- Actual HPV positive patients: 69
+- Mean predicted HPV-positive probability for positives: 0.970
+- Positives predicted below 0.5: 1
+- Positives predicted above 0.5: 68
+
+Test:
+
+- Actual HPV negative patients: 9
+- Mean predicted HPV-positive probability for negatives: 0.896
+- Negatives predicted below 0.5: 1
+- Negatives predicted above 0.5: 8
+- Negatives with probability at least 0.9: 7
+- Actual HPV positive patients: 69
+- Mean predicted HPV-positive probability for positives: 0.960
+- Positives predicted below 0.5: 2
+- Positives predicted above 0.5: 67
+
+Interpretation:
+The PET-only probability distribution shows the main weakness of the PET-only
+model. It gave high HPV-positive probabilities to almost everyone.
+
+For the test set, 7 out of 9 real HPV negative patients had probability at least
+0.9. This means the model was very confident but wrong for many negative
+patients.
+
+So the probability distribution likely shows heavy overlap near 1.0 between HPV
+negative and HPV positive patients. This explains the very low specificity.
+
+
+3.3 PET-only feature importance: top 10
+
+Top 10 PET features by LightGBM gain importance:
+
+Rank  Feature                                                   Gain percent
+1     PET_original_shape_Maximum2DDiameterSlice                    8.09%
+2     PET_original_glrlm_RunLengthNonUniformityNormalized          6.42%
+3     PET_original_shape_Sphericity                                5.41%
+4     PET_original_shape_Elongation                                4.59%
+5     PET_original_glcm_MCC                                        4.17%
+6     PET_original_glcm_Idn                                        3.84%
+7     PET_original_glcm_Correlation                                3.33%
+8     PET_original_glcm_Imc2                                       3.26%
+9     PET_original_firstorder_Minimum                              3.24%
+10    PET_original_glcm_Imc1                                       3.11%
+
+Interpretation:
+The PET-only model used a mix of shape features and texture features.
+
+The top feature was Maximum2DDiameterSlice, a shape-related measurement. Several
+other top features were also shape-related, such as Sphericity and Elongation.
+
+Texture features from GLCM and GLRLM groups were also important. This means the
+model tried to use both tumor shape and image texture patterns.
+
+However, even though the model found important PET features, the test results
+showed poor separation between HPV negative and HPV positive patients. So these
+PET features were not enough by themselves to generalize well.
+
+
+3.4 PET-only SHAP summary: top 10
+
+Top 10 PET features by mean absolute SHAP value:
+
+Rank  Feature                                                   Mean absolute SHAP
+1     PET_original_shape_Maximum2DDiameterSlice                       0.758
+2     PET_original_shape_Sphericity                                   0.617
+3     PET_original_glcm_Imc1                                          0.461
+4     PET_original_glcm_Idn                                           0.455
+5     PET_original_glcm_MCC                                           0.430
+6     PET_original_shape_Elongation                                   0.384
+7     PET_original_glrlm_RunLengthNonUniformityNormalized             0.313
+8     PET_original_firstorder_Kurtosis                                0.245
+9     PET_original_glcm_InverseVariance                               0.242
+10    PET_original_firstorder_Minimum                                 0.234
+
+Interpretation:
+The SHAP summary agrees with feature importance that Maximum2DDiameterSlice was
+the strongest PET feature. Sphericity was also highly influential.
+
+The PET-only SHAP results suggest that shape and texture features were the main
+sources of prediction movement. But because the model still predicted many HPV
+negative patients as positive, these SHAP effects did not create enough clean
+separation between the classes.
+
+
+3.5 PET-only SHAP heatmap
+
+Interpretation:
+The PET-only SHAP heatmap likely shows that several PET features push many
+patients toward HPV positive. This matches the probability distribution, where
+most patients received high HPV-positive probabilities.
+
+The heatmap is useful because it shows that the model is not using only one PET
+feature. It uses multiple radiomics features. But the overall pattern still did
+not separate HPV negative patients well.
+
+In simple terms:
+The PET-only model found patterns in PET features, but these patterns were not
+specific enough to correctly recognize many HPV negative patients.
+
+
+3.6 PET-only SHAP dependence
+
+The SHAP dependence plot focused on:
+
+PET_original_shape_Maximum2DDiameterSlice
+
+On the test set:
+
+- Minimum value: 9.220
+- 25 percent value: 22.153
+- Median value: 27.758
+- 75 percent value: 36.677
+- Maximum value: 64.140
+- SHAP range: about -2.942 to +1.111
+- Correlation between feature value and SHAP value: -0.869
+
+Interpretation:
+There was a strong negative relationship between Maximum2DDiameterSlice and its
+SHAP value. As this PET feature increased, its SHAP contribution usually became
+more negative, meaning it pushed the model away from HPV positive.
+
+This feature was important, but it was not enough to fix the PET-only model's
+overall problem. The model still gave very high positive probabilities to many
+HPV negative patients.
+
+
+4. Clinical + PET combined experiment
+
+Input:
+The combined model used:
+
+- 8 clinical features
+- 107 PET radiomics features
+- 115 total features
+
+Important note:
+In the combined script, the SHAP plots were generated using the validation set.
+The clinical-only and PET-only SHAP plots were generated using the test set.
+
+
+4.1 Combined calibration table and ECE
+
+Validation ECE:
+0.072
+
+Test ECE:
+0.069
+
+Ideal ECE:
+0.000
+
+Interpretation:
+The combined model had the best ECE among the three experiments on the test set.
+The test ECE was slightly better than validation, which means the predicted
+probabilities were a little more reliable on test.
+
+Validation calibration details:
+
+- In the [0.9, 1.0] bin, there were 70 patients.
+- Mean predicted probability was 0.997.
+- Observed HPV positive rate was 0.957.
+- Gap was 0.039.
+
+Test calibration details:
+
+- In the [0.9, 1.0] bin, there were 71 patients.
+- Mean predicted probability was 0.995.
+- Observed HPV positive rate was 0.944.
+- Gap was 0.051.
+
+The high-probability bin was still fairly good, but the model was slightly
+overconfident in that bin because the predicted probability was higher than the
+observed positive rate.
+
+Small bins still had unstable gaps. For example, the validation [0.8, 0.9] bin
+had only 1 patient, predicted around 0.802, but that patient was HPV negative.
+This created a large gap of 0.802.
+
+This is why calibration bins with very few patients should be interpreted
+carefully.
+
+
+4.2 Combined probability distribution
+
+Validation:
+
+- Actual HPV negative patients: 8
+- Mean predicted HPV-positive probability for negatives: 0.580
+- Negatives predicted below 0.5: 3
+- Negatives predicted above 0.5: 5
+- Actual HPV positive patients: 69
+- Mean predicted HPV-positive probability for positives: 0.983
+- Positives predicted below 0.5: 1
+- Positives predicted above 0.5: 68
+- Positives with probability at least 0.9: 67
+
+Test:
+
+- Actual HPV negative patients: 9
+- Mean predicted HPV-positive probability for negatives: 0.520
+- Negatives predicted below 0.5: 5
+- Negatives predicted above 0.5: 4
+- Actual HPV positive patients: 69
+- Mean predicted HPV-positive probability for positives: 0.977
+- Positives predicted below 0.5: 1
+- Positives predicted above 0.5: 68
+- Positives with probability at least 0.9: 67
+
+Interpretation:
+The combined probability distribution was strong for HPV positive patients. Most
+true HPV positive patients were placed very close to probability 1.0.
+
+For HPV negative patients, the model improved on test compared with validation.
+On test, 5 out of 9 negatives were below the 0.5 threshold. Still, 4 out of 9
+negatives were given high probabilities and predicted as HPV positive.
+
+This means the combined model was excellent for detecting HPV positive patients,
+but still not perfect at separating HPV negative patients.
+
+
+4.3 Combined feature importance: top 10
+
+Top 10 features by LightGBM gain importance:
+
+Rank  Feature                                                   Gain percent
+1     M-stage                                                      35.54%
+2     CenterID                                                      7.43%
+3     Tobacco Consumption                                           5.84%
+4     Alcohol Consumption                                           5.25%
+5     PET_original_shape_Elongation                                 4.70%
+6     PET_original_shape_Sphericity                                 3.46%
+7     PET_original_glszm_SmallAreaLowGrayLevelEmphasis              2.18%
+8     PET_original_shape_Maximum2DDiameterSlice                     2.06%
+9     Age                                                           2.03%
+10    PET_original_shape_LeastAxisLength                            1.89%
+
+Interpretation:
+The combined model still depended strongly on clinical information. M-stage was
+the most important feature, with about 35.5 percent of total gain importance.
+
+The top 4 features were clinical:
+
+- M-stage
+- CenterID
+- Tobacco Consumption
+- Alcohol Consumption
+
+PET features also appeared in the top 10, especially shape features such as
+Elongation, Sphericity, Maximum2DDiameterSlice, and LeastAxisLength.
+
+This means the combined model used PET information, but the strongest signal was
+still clinical.
+
+
+4.4 Combined SHAP summary: top 10
+
+Top 10 features by mean absolute SHAP value:
+
+Rank  Feature                                                   Mean absolute SHAP
+1     M-stage                                                          1.150
+2     Tobacco Consumption                                              0.978
+3     CenterID                                                         0.562
+4     PET_original_shape_Elongation                                    0.453
+5     PET_original_shape_Sphericity                                    0.451
+6     PET_original_shape_Maximum2DDiameterSlice                        0.324
+7     PET_original_shape_LeastAxisLength                               0.320
+8     PET_original_glrlm_RunLengthNonUniformityNormalized              0.229
+9     Alcohol Consumption                                              0.223
+10    PET_original_glszm_SmallAreaLowGrayLevelEmphasis                 0.216
+
+Interpretation:
+The combined SHAP summary shows a mixed clinical and PET pattern.
+
+The most influential feature was still M-stage. Tobacco Consumption and CenterID
+were also strong clinical contributors.
+
+PET shape features then became important patient-level contributors:
+
+- Elongation
+- Sphericity
+- Maximum2DDiameterSlice
+- LeastAxisLength
+
+This shows that PET features did add information, but they acted more like extra
+adjustments around the strong clinical signal.
+
+
+4.5 Combined SHAP heatmap
+
+Interpretation:
+The combined SHAP heatmap shows patient-level contributions from both clinical
+and PET features.
+
+The strongest repeated pattern is still clinical, especially M-stage and Tobacco
+Consumption. PET shape features add extra positive or negative pushes depending
+on the patient.
+
+In simple terms:
+The combined model appears to use clinical features as the main base for
+prediction, then uses PET radiomics features to adjust the probability for
+specific patients.
+
+This helps explain why the combined model had the best test accuracy and
+F1-score, but did not beat clinical-only on test ROC-AUC.
+
+
+4.6 Combined SHAP dependence
+
+The SHAP dependence plot focused on:
+
+M-stage
+
+On the validation set:
+
+- M0 patients: 71 patients, mean SHAP = +0.765
+- Missing M-stage patients: 6 patients, mean SHAP = -5.704
+
+Interpretation:
+Just like in the clinical-only model, M-stage had a very strong effect in the
+combined model.
+
+M0 pushed the prediction toward HPV positive. Missing M-stage strongly pushed the
+prediction toward HPV negative.
+
+This is a very important result because it shows that even after adding 107 PET
+features, M-stage remained the strongest model driver.
+
+
+5. Final comparison across the three experiments
+
+Calibration:
+
+- Clinical-only test ECE: 0.085
+- PET-only test ECE: 0.130
+- Combined test ECE: 0.069
+
+Best calibration:
+The combined model had the best test calibration because it had the lowest ECE.
+
+Probability distributions:
+
+- Clinical-only separated HPV positives well, but some negatives overlapped with
+  positives.
+- PET-only gave high HPV-positive probabilities to almost everyone, including
+  most HPV negative patients.
+- Combined separated HPV positives very well and improved the negative group
+  compared with PET-only, but still misclassified some negatives.
+
+Feature importance:
+
+- Clinical-only was dominated by M-stage, Age, and Tobacco Consumption.
+- PET-only used shape and texture radiomics features, especially
+  Maximum2DDiameterSlice.
+- Combined was still dominated by clinical features, especially M-stage, but PET
+  shape features appeared in the top 10.
+
+SHAP summary:
+
+- Clinical-only: M-stage was the strongest patient-level contributor.
+- PET-only: Maximum2DDiameterSlice and Sphericity were the strongest PET
+  contributors.
+- Combined: M-stage remained strongest, followed by Tobacco Consumption, CenterID,
+  and several PET shape features.
+
+SHAP heatmap:
+
+- Clinical-only heatmap showed a few clinical features driving most predictions.
+- PET-only heatmap showed several radiomics features affecting predictions, but
+  not enough clean separation between classes.
+- Combined heatmap showed clinical features driving the main prediction and PET
+  features adding patient-specific adjustments.
+
+SHAP dependence:
+
+- Clinical-only dependence: M-stage was very influential.
+- PET-only dependence: Maximum2DDiameterSlice had a strong negative relationship
+  with its SHAP value.
+- Combined dependence: M-stage stayed very influential even after PET features
+  were added.
+
+
+6. Simple final conclusion
+
+The extra plots and tables confirm the same general story as the metrics.
+
+The clinical-only model was strong because a few clinical features, especially
+M-stage, carried important predictive information.
+
+The PET-only model found important radiomics features, especially tumor shape and
+texture features, but its probability distribution showed a major problem: it
+predicted most patients as HPV positive, including most HPV negative patients.
+
+The combined model gave the best overall test behavior. It had the best test ECE,
+strong probability separation for HPV positive patients, and useful top features
+from both clinical and PET data. However, the interpretation plots show that the
+model was still mainly driven by clinical features, especially M-stage, while PET
+features added extra but smaller adjustments.
+
+So the main interpretation is:
+
+Clinical features gave the strongest stable signal. PET features alone were not
+enough. Combining clinical and PET features improved several final results, but
+the combined model still relied heavily on the clinical information.

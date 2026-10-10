@@ -1,0 +1,103 @@
+Merged clinical + PET FT-Transformer results interpretation
+
+Model setup
+- Input file: clinical_pet_merged_preprocessed.csv
+- Target: HPV Status
+- Model: Keras FT-Transformer for tabular binary classification.
+- PatientID was not used as an input feature.
+- CenterID was explicitly ignored.
+- Input feature count: 120
+- Existing train/validation/test split files were reused.
+- No new split was created.
+- No hyperparameter tuning was performed.
+- No feature selection, feature filtering, or feature engineering was performed.
+- No scaling or normalization was applied.
+- No manual imputation was performed.
+- Fixed classification threshold: 0.5.
+- Feature importance and SHAP displays were limited to the top 10 features.
+
+Numerical metric interpretation
+Validation:
+- ROC-AUC: 0.962
+- Accuracy: 0.935
+- Balanced Accuracy: 0.743
+- Sensitivity: 0.986
+- Specificity: 0.500
+- Precision: 0.944
+- F1-score: 0.965
+- Confusion Matrix: [[4, 4], [1, 68]]
+- Brier Score: 0.056
+- PR-AUC: 0.996
+- Expected Calibration Error (ECE): 0.056
+
+Test:
+- ROC-AUC: 0.916
+- Accuracy: 0.936
+- Balanced Accuracy: 0.771
+- Sensitivity: 0.986
+- Specificity: 0.556
+- Precision: 0.944
+- F1-score: 0.965
+- Confusion Matrix: [[5, 4], [1, 68]]
+- Brier Score: 0.059
+- PR-AUC: 0.988
+- Expected Calibration Error (ECE): 0.071
+
+Detailed numerical metrics interpretation
+The merged clinical + PET FT-Transformer is the strongest Week 12 model overall. Validation ROC-AUC is 0.962 and test ROC-AUC is 0.916. This means the merged model ranks HPV-positive patients above HPV-negative patients very well on both validation and test.
+
+Accuracy is high on both splits. Validation accuracy is 0.935 and test accuracy is 0.936. In raw counts, the model correctly classified 72 of 77 validation patients and 73 of 78 test patients.
+
+Balanced Accuracy is lower than raw accuracy but still useful. Validation Balanced Accuracy is 0.743 and test Balanced Accuracy is 0.771. This indicates that the model is not merely benefiting from the majority HPV-positive class; it also detects some HPV-negative patients.
+
+Sensitivity is very high on both validation and test. The model correctly detected 68 of 69 HPV-positive patients on validation and 68 of 69 HPV-positive patients on test. This is excellent positive-class performance.
+
+Specificity is moderate. The model correctly detected 4 of 8 HPV-negative validation patients and 5 of 9 HPV-negative test patients. The remaining weakness is the 4 false positives on each split.
+
+Precision and F1-score are strong. Test precision is 0.944 and test F1-score is 0.965, showing that positive predictions are usually correct and that the model balances precision with very high sensitivity.
+
+Calibration is acceptable. Validation Brier Score is 0.056 and test Brier Score is 0.059. Validation ECE is 0.056 and test ECE is 0.071. These values show that the predicted probabilities are reasonably reliable, although test ECE is slightly worse than the clinical-only model.
+
+ROC curve interpretation
+The ROC curves show strong discrimination. Validation ROC-AUC is 0.962 and test ROC-AUC is 0.916. The small validation-test gap compared with the PET-only model suggests that adding clinical features makes the model more stable.
+
+Precision-recall curve interpretation
+The PR-AUC is 0.996 on validation and 0.988 on test. These values are very high. Because the dataset is imbalanced toward HPV-positive patients, PR-AUC should still be read with specificity and Balanced Accuracy. Here, the merged model has strong PR-AUC and still detects several HPV-negative patients, so the result is more meaningful than PET-only.
+
+Calibration curve and calibration table interpretation
+The 10-bin calibration tables show reasonable probability calibration. Test Brier Score is 0.059 and test ECE is 0.071. The model's probability estimates are useful, but the calibration curve should still be checked visually because the negative class has only 9 test patients.
+
+Confusion matrix heatmap interpretation
+The validation confusion matrix is [[4, 4], [1, 68]]. The test confusion matrix is [[5, 4], [1, 68]]. This means the merged model keeps the same high sensitivity as the clinical-only model and identifies more than half of the HPV-negative test patients.
+
+The most important practical result is that the model misses only 1 HPV-positive patient on each split. The main remaining issue is that it still labels 4 HPV-negative patients as positive on validation and 4 on test.
+
+Probability distribution plot interpretation
+The probability distribution plot should show better separation than PET-only. Many HPV-positive patients should receive high probabilities, while some HPV-negative patients move lower. There is still overlap, which explains why specificity is moderate instead of high.
+
+Feature importance plot interpretation
+The top permutation importance features were Alcohol Consumption_missing, Tobacco Consumption_missing, M-stage_M0, Tobacco Consumption, Alcohol Consumption, M-stage_Unknown, PET_original_glcm_SumSquares, PET_original_glszm_LargeAreaLowGrayLevelEmphasis, PET_original_gldm_GrayLevelVariance, and PET_original_glszm_GrayLevelVariance.
+
+This is an important result because both clinical and PET variables appear in the top 10. The strongest features are clinical/missingness and staging variables, while PET gray-level and texture features add extra information.
+
+SHAP summary plot interpretation
+The strongest SHAP features were M-stage_M0, M-stage_Unknown, Tobacco Consumption, Alcohol Consumption, Alcohol Consumption_missing, Tobacco Consumption_missing, PET_original_gldm_GrayLevelVariance, PET_original_glcm_SumSquares, PET_original_glszm_LargeAreaLowGrayLevelEmphasis, and PET_original_glszm_GrayLevelVariance.
+
+The SHAP result supports the permutation-importance result. The merged model is driven mainly by clinical staging and tobacco/alcohol variables, with PET texture/gray-level features contributing additional signal.
+
+SHAP dependence plot interpretation
+The automatically selected dependence feature was M-stage_M0. Even in the merged model, M-stage_M0 has the largest mean absolute SHAP value among the selected top features. This means clinical staging remains the clearest explanatory driver of the FT-Transformer prediction.
+
+SHAP heatmap interpretation
+The SHAP heatmap shows patient-level contributions from both clinical and PET features. M-stage_M0 and M-stage_Unknown repeatedly influence predictions, while selected PET texture features add smaller patient-level contributions. This suggests the merged model is not simply a PET-only model; clinical information remains central.
+
+Training loss curve interpretation
+Training loss decreased from 0.448 at epoch 1 to 0.117 at epoch 60. Validation loss decreased from 0.332 to 0.175. Training ROC-AUC increased from 0.387 to 0.976, and validation ROC-AUC ended at 0.962. The model learned a strong signal and kept strong validation performance.
+
+Comparison with clinical-only and PET-only
+The merged FT-Transformer has the best test ROC-AUC: 0.916 compared with 0.820 for clinical-only and 0.638 for PET-only. The merged and clinical-only models have the same thresholded confusion matrix pattern on test: [[5, 4], [1, 68]]. However, the merged model has stronger probability ranking, shown by the higher test ROC-AUC and PR-AUC.
+
+PET-only is much weaker for balanced classification because it predicts every validation and test patient as HPV positive. The merged model avoids that problem because the clinical features provide stronger structure.
+
+Overall conclusion
+The merged clinical + PET FT-Transformer is the strongest Week 12 FT-Transformer classification result. It combines clinical staging and tobacco/alcohol variables with PET radiomic texture information. It has excellent test ROC-AUC, high sensitivity, strong precision, useful calibration, and moderate specificity. The main limitation is still false positives among HPV-negative patients, but the merged model is clearly stronger and more stable than PET-only.

@@ -1,0 +1,92 @@
+Clinical-only MLP results interpretation
+
+Model setup
+- Input file: clinical_entry_preprocessed.csv
+- Target: HPV Status
+- PatientID was not used as an input feature.
+- CenterID was explicitly ignored.
+- Input feature count: 13
+- Scaling: no scaling or normalization was applied.
+- Resampling: SMOTENC was applied only to the training set.
+- Training target counts changed from {0: 40, 1: 319} to {0: 319, 1: 319}.
+
+Numerical metric interpretation
+Validation:
+- ROC-AUC: 0.978
+- Accuracy: 0.922
+- Balanced Accuracy: 0.957
+- Sensitivity: 0.913
+- Specificity: 1.000
+- Precision: 1.000
+- F1-score: 0.955
+- Confusion Matrix: [[8, 0], [6, 63]]
+- Brier Score: 0.048
+- PR-AUC: 0.997
+- Expected Calibration Error (ECE): 0.058
+
+Test:
+- ROC-AUC: 0.862
+- Accuracy: 0.872
+- Balanced Accuracy: 0.783
+- Sensitivity: 0.899
+- Specificity: 0.667
+- Precision: 0.954
+- F1-score: 0.925
+- Confusion Matrix: [[6, 3], [7, 62]]
+- Brier Score: 0.089
+- PR-AUC: 0.969
+- Expected Calibration Error (ECE): 0.106
+
+Detailed numerical metrics interpretation
+The clinical-only model is the strongest individual model. The validation ROC-AUC is 0.978 and the test ROC-AUC is 0.862, showing that the clinical features contain strong information for predicting HPV Status. The decrease from validation to test means the model generalizes well, but not perfectly.
+
+Accuracy is high on both splits. Validation accuracy is 0.922, meaning 71 of 77 validation patients were classified correctly. Test accuracy is 0.872, meaning 68 of 78 test patients were classified correctly. This shows strong overall classification performance.
+
+Balanced Accuracy is also strong, especially on validation. Validation Balanced Accuracy is 0.957, which means the model performed well for both HPV-negative and HPV-positive classes. Test Balanced Accuracy is 0.783, which is lower than validation but still useful. The drop is mainly caused by weaker test specificity.
+
+The model keeps high sensitivity on both validation and test. Validation sensitivity is 0.913, and test sensitivity is 0.899. On the test set, this means the model correctly detected 62 of 69 HPV-positive patients and missed 7 HPV-positive patients.
+
+Specificity is excellent on validation but lower on test. Validation specificity is 1.000, meaning all 8 HPV-negative validation patients were correctly identified. Test specificity is 0.667, meaning 6 of 9 HPV-negative test patients were correctly identified, while 3 were false positives.
+
+Precision and F1-score are also strong. Test precision is 0.954 and test F1-score is 0.925, meaning the model's positive predictions are usually correct and the balance between precision and sensitivity is good.
+
+The Brier Score and ECE show that the predicted probabilities are fairly reliable. The test Brier Score is 0.089 and test ECE is 0.106. These values are worse than validation but still acceptable compared with the weaker PET-only results.
+
+ROC curve interpretation
+The ROC curves show strong discrimination. Validation ROC-AUC is 0.978, which is very high. Test ROC-AUC is lower at 0.862, but still good. This means the clinical model usually ranks HPV-positive patients above HPV-negative patients, although the performance drops on unseen test data.
+
+Precision-recall curve interpretation
+The PR-AUC is 0.997 on validation and 0.969 on test. Because the dataset has many more HPV-positive patients than HPV-negative patients, the precision-recall curve is important. These high PR-AUC values show that the clinical model keeps strong precision while recovering most HPV-positive patients.
+
+Calibration curve and calibration table interpretation
+The validation ECE is 0.058 and the test ECE is 0.106. The test calibration is weaker than validation, but still acceptable compared with PET-only before scaling. The Brier Score is 0.048 on validation and 0.089 on test, which supports the same idea: the clinical probabilities are fairly useful, but the test probabilities are less calibrated than validation.
+
+Confusion matrix heatmap interpretation
+On validation, the model correctly identified all 8 HPV-negative patients and 63 of 69 HPV-positive patients. It made 0 false positives and 6 false negatives. On test, it correctly identified 6 of 9 HPV-negative patients and 62 of 69 HPV-positive patients. It made 3 false positives and 7 false negatives.
+
+This means the model is very good at identifying HPV-positive patients while still finding some HPV-negative cases. The main test-set weakness is the 7 false negatives and 3 false positives.
+
+Probability distribution plot interpretation
+The probability distribution plot shows how predicted HPV-positive probabilities are separated by true class. For the clinical model, HPV-positive patients are generally pushed toward high predicted probabilities. HPV-negative patients are more often lower, but there is some overlap on test, which explains why test specificity is 0.667 rather than perfect.
+
+Feature importance plot interpretation
+The permutation feature importance plot shows which features caused the largest validation ROC-AUC drop when shuffled. The strongest feature was M-stage_M0 with a mean ROC-AUC drop of 0.085. Other important features included M-stage_Unknown, Alcohol Consumption, Alcohol Consumption_missing, Tobacco Consumption, Performance Status, and Tobacco Consumption_missing.
+
+This means the clinical model depends heavily on tumor staging information and alcohol/tobacco-related clinical patterns.
+
+SHAP summary plot interpretation
+The SHAP summary plot supports the permutation importance result. The top SHAP features were M-stage_M0, M-stage_Unknown, Alcohol Consumption_missing, Tobacco Consumption_missing, Alcohol Consumption, Performance Status_missing, Tobacco Consumption, Performance Status, Gender, and Age.
+
+This means the model's predictions are not controlled by one feature only. Instead, the prediction is built from a combination of staging, missingness indicators, alcohol/tobacco variables, and general clinical status.
+
+SHAP dependence plot interpretation
+The automatically selected dependence feature was M-stage_M0. This plot shows how the SHAP contribution changes when M-stage_M0 changes. Because M-stage_M0 is one-hot encoded, the plot mainly compares patients with M-stage_M0 = 0 against M-stage_M0 = 1. The feature has a clear contribution to the predicted HPV probability.
+
+SHAP heatmap interpretation
+The SHAP heatmap shows patient-level explanations across the validation samples. M-stage_M0 and M-stage_Unknown are dominant rows, meaning they repeatedly influence predictions across many patients. Alcohol/tobacco missingness and consumption variables also contribute across multiple samples.
+
+Training loss curve interpretation
+The training loss decreased from 0.659 at the first epoch to 0.178 at the final epoch. Validation loss decreased from 0.599 to 0.135. Validation ROC-AUC finished around 0.978 in the training history. This suggests the clinical model learned a stable signal and did not show severe overfitting in the saved training curve.
+
+Overall conclusion
+The clinical-only model is strong and clinically meaningful. It performs well on validation and remains good on test. The most important information comes from M-stage and alcohol/tobacco-related clinical features. The test set shows some loss in specificity and calibration compared with validation, but the clinical-only model is still reliable for HPV binary classification.

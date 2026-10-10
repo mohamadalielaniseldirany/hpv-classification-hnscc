@@ -1,0 +1,580 @@
+Validation and Test Results Analysis for the Three LightGBM Experiments
+
+This file explains the validation and test results for the three experiments:
+
+1. Clinical-only
+2. PET-only
+3. Clinical + PET combined
+
+For each experiment, the validation results are compared with the test results.
+The file also explains what each metric means, what the ideal value is, and what
+the obtained results mean in this HPV classification project.
+
+
+1. Important context before reading the results
+
+The model predicts HPV status:
+
+- 0 = HPV negative
+- 1 = HPV positive
+
+The split sizes were the same in all experiments:
+
+- Train: 359 patients, 40 HPV negative and 319 HPV positive
+- Validation: 77 patients, 8 HPV negative and 69 HPV positive
+- Test: 78 patients, 9 HPV negative and 69 HPV positive
+
+This dataset is imbalanced because most patients are HPV positive.
+
+This matters a lot. A model can get high accuracy by predicting many patients as
+HPV positive. Because of that, we should not look only at accuracy. We also need
+to look at balanced accuracy, sensitivity, specificity, ROC-AUC, PR-AUC,
+calibration, and the confusion matrix.
+
+
+2. Metric guide: what each result means
+
+ROC-AUC
+
+Meaning:
+ROC-AUC measures how well the model ranks HPV positive patients above HPV
+negative patients using predicted probabilities.
+
+Ideal result:
+The best possible ROC-AUC is 1.0. A value around 0.5 means the model is close to
+random guessing.
+
+How to read it here:
+Higher is better. A strong ROC-AUC means the model usually gives higher HPV
+positive probabilities to truly HPV positive patients.
+
+
+Accuracy
+
+Meaning:
+Accuracy is the percentage of all patients classified correctly.
+
+Ideal result:
+The best possible accuracy is 1.0, meaning 100 percent correct predictions.
+
+How to read it here:
+Higher is better, but accuracy can be misleading because most patients are HPV
+positive. A model can look accurate while still missing many HPV negative
+patients.
+
+
+Balanced Accuracy
+
+Meaning:
+Balanced accuracy gives equal importance to HPV positive and HPV negative
+patients. It is the average of sensitivity and specificity.
+
+Ideal result:
+The best possible balanced accuracy is 1.0. A value around 0.5 is weak, similar
+to guessing in a balanced view.
+
+How to read it here:
+This is very useful for this project because the dataset is imbalanced.
+
+
+Sensitivity
+
+Meaning:
+Sensitivity measures how many real HPV positive patients were correctly predicted
+as HPV positive.
+
+Ideal result:
+The best possible sensitivity is 1.0.
+
+How to read it here:
+High sensitivity means the model is good at finding HPV positive patients.
+
+
+Specificity
+
+Meaning:
+Specificity measures how many real HPV negative patients were correctly predicted
+as HPV negative.
+
+Ideal result:
+The best possible specificity is 1.0.
+
+How to read it here:
+Low specificity means the model is predicting too many HPV negative patients as
+HPV positive.
+
+
+Precision
+
+Meaning:
+Precision measures how often the model was correct when it predicted HPV
+positive.
+
+Ideal result:
+The best possible precision is 1.0.
+
+How to read it here:
+High precision means that when the model says "HPV positive", it is usually
+right.
+
+
+F1-score
+
+Meaning:
+F1-score combines precision and sensitivity into one score.
+
+Ideal result:
+The best possible F1-score is 1.0.
+
+How to read it here:
+High F1-score means the model is doing well at predicting the positive class,
+but it does not fully show how well the model handles HPV negative patients.
+
+
+Brier Score
+
+Meaning:
+Brier Score measures the quality of the predicted probabilities.
+
+Ideal result:
+The best possible Brier Score is 0.0. Lower is better.
+
+How to read it here:
+A lower Brier Score means the model's probabilities are closer to the true
+answers.
+
+
+PR-AUC
+
+Meaning:
+PR-AUC measures the area under the precision-recall curve. It is useful when the
+classes are imbalanced.
+
+Ideal result:
+The best possible PR-AUC is 1.0.
+
+How to read it here:
+Higher is better. However, because HPV positive patients are the majority class,
+the baseline PR-AUC is already high compared with a balanced dataset. In the
+validation set, the HPV positive rate is about 0.896. In the test set, it is
+about 0.885.
+
+
+Expected Calibration Error
+
+Meaning:
+Expected Calibration Error checks if predicted probabilities match reality.
+
+Ideal result:
+The best possible value is 0.0. Lower is better.
+
+How to read it here:
+If calibration error is low, the model's probability values are more believable.
+For example, among patients predicted around 90 percent positive, around 90
+percent should actually be positive.
+
+
+Confusion Matrix: TN, FP, FN, TP
+
+Meaning:
+The confusion matrix shows the number of correct and wrong classifications.
+
+- TN = true negatives: real HPV negative predicted HPV negative
+- FP = false positives: real HPV negative predicted HPV positive
+- FN = false negatives: real HPV positive predicted HPV negative
+- TP = true positives: real HPV positive predicted HPV positive
+
+Ideal result:
+The ideal result is:
+
+- FP = 0
+- FN = 0
+- TN = all real HPV negative patients
+- TP = all real HPV positive patients
+
+For validation, the ideal confusion matrix would have:
+
+- TN = 8
+- FP = 0
+- FN = 0
+- TP = 69
+
+For test, the ideal confusion matrix would have:
+
+- TN = 9
+- FP = 0
+- FN = 0
+- TP = 69
+
+
+3. Clinical-only experiment
+
+Input used:
+The model used only clinical features:
+
+- CenterID
+- Age
+- Gender
+- Tobacco Consumption
+- Alcohol Consumption
+- Performance Status
+- Treatment
+- M-stage
+
+
+Clinical-only validation vs test results
+
+Metric                           Ideal      Validation      Test
+ROC-AUC                          1.000         0.942        0.940
+Accuracy                         1.000         0.935        0.897
+Balanced Accuracy                1.000         0.743        0.749
+Sensitivity                      1.000         0.986        0.942
+Specificity                      1.000         0.500        0.556
+Precision                        1.000         0.944        0.942
+F1-score                         1.000         0.965        0.942
+Brier Score                      0.000         0.063        0.078
+PR-AUC                           1.000         0.993        0.992
+Expected Calibration Error        0.000         0.071        0.085
+
+
+Clinical-only confusion matrices
+
+Validation:
+
+- TN = 4 out of ideal 8
+- FP = 4, ideal is 0
+- FN = 1, ideal is 0
+- TP = 68 out of ideal 69
+
+Test:
+
+- TN = 5 out of ideal 9
+- FP = 4, ideal is 0
+- FN = 4, ideal is 0
+- TP = 65 out of ideal 69
+
+
+Clinical-only interpretation
+
+The clinical-only model performed strongly in both validation and test.
+
+The ROC-AUC stayed almost the same:
+
+- Validation ROC-AUC = 0.942
+- Test ROC-AUC = 0.940
+
+This is a good sign because it means the model's ability to rank patients stayed
+stable when moving from validation to test.
+
+Accuracy decreased from 0.935 on validation to 0.897 on test. This means the test
+set was slightly harder for the model, or the model made more threshold-based
+classification mistakes on the test patients.
+
+Sensitivity was very high in both sets:
+
+- Validation sensitivity = 0.986
+- Test sensitivity = 0.942
+
+This means the model was very good at detecting HPV positive patients. On
+validation, it missed only 1 HPV positive patient. On test, it missed 4 HPV
+positive patients.
+
+Specificity was lower:
+
+- Validation specificity = 0.500
+- Test specificity = 0.556
+
+This means the model had more difficulty detecting HPV negative patients. On
+validation, it correctly identified 4 out of 8 HPV negative patients. On test, it
+correctly identified 5 out of 9 HPV negative patients.
+
+Overall:
+The clinical-only model was strong and stable. It was very good for HPV positive
+detection and had excellent ROC-AUC and PR-AUC. Its main weakness was moderate
+specificity, meaning it sometimes predicted HPV negative patients as HPV
+positive.
+
+
+4. PET-only experiment
+
+Input used:
+The model used only PET radiomics features. These are numerical features
+extracted from PET imaging data.
+
+The model used:
+
+- 107 PET radiomics features
+
+
+PET-only validation vs test results
+
+Metric                           Ideal      Validation      Test
+ROC-AUC                          1.000         0.900        0.549
+Accuracy                         1.000         0.896        0.872
+Balanced Accuracy                1.000         0.555        0.541
+Sensitivity                      1.000         0.986        0.971
+Specificity                      1.000         0.125        0.111
+Precision                        1.000         0.907        0.893
+F1-score                         1.000         0.944        0.931
+Brier Score                      0.000         0.085        0.120
+PR-AUC                           1.000         0.988        0.906
+Expected Calibration Error        0.000         0.087        0.130
+
+
+PET-only confusion matrices
+
+Validation:
+
+- TN = 1 out of ideal 8
+- FP = 7, ideal is 0
+- FN = 1, ideal is 0
+- TP = 68 out of ideal 69
+
+Test:
+
+- TN = 1 out of ideal 9
+- FP = 8, ideal is 0
+- FN = 2, ideal is 0
+- TP = 67 out of ideal 69
+
+
+PET-only interpretation
+
+The PET-only model had a clear difference between validation and test.
+
+On validation, ROC-AUC was strong:
+
+- Validation ROC-AUC = 0.900
+
+But on test, ROC-AUC dropped strongly:
+
+- Test ROC-AUC = 0.549
+
+This is close to random ranking. It means that on the test set, the PET-only
+model was not good at ranking HPV positive patients above HPV negative patients.
+
+Accuracy looked high:
+
+- Validation accuracy = 0.896
+- Test accuracy = 0.872
+
+But this is misleading because the dataset has many HPV positive patients. The
+model predicted most patients as HPV positive, so it got many positive patients
+correct but failed on most negative patients.
+
+This is shown by the specificity:
+
+- Validation specificity = 0.125
+- Test specificity = 0.111
+
+These are very low compared with the ideal value of 1.0. On validation, the
+model correctly detected only 1 out of 8 HPV negative patients. On test, it
+correctly detected only 1 out of 9 HPV negative patients.
+
+Sensitivity was very high:
+
+- Validation sensitivity = 0.986
+- Test sensitivity = 0.971
+
+This means the model detected most HPV positive patients. But because specificity
+was very low, the model was biased toward predicting HPV positive.
+
+Brier Score and Expected Calibration Error were also worse on test than on
+validation:
+
+- Brier Score increased from 0.085 to 0.120
+- Expected Calibration Error increased from 0.087 to 0.130
+
+Because lower is better for both metrics, this means the PET-only probabilities
+were less reliable on the test set.
+
+Overall:
+The PET-only model did not generalize well to the test set. It was good at
+finding HPV positive patients, but it was weak at identifying HPV negative
+patients. The large ROC-AUC drop from validation to test suggests that PET
+radiomics features alone were not stable enough for this classification task in
+this split.
+
+
+5. Clinical + PET combined experiment
+
+Input used:
+The model used both clinical and PET features.
+
+The model used:
+
+- 8 clinical features
+- 107 PET radiomics features
+- 115 total input features
+
+
+Clinical + PET validation vs test results
+
+Metric                           Ideal      Validation      Test
+ROC-AUC                          1.000         0.975        0.857
+Accuracy                         1.000         0.922        0.936
+Balanced Accuracy                1.000         0.680        0.771
+Sensitivity                      1.000         0.986        0.986
+Specificity                      1.000         0.375        0.556
+Precision                        1.000         0.932        0.944
+F1-score                         1.000         0.958        0.965
+Brier Score                      0.000         0.058        0.065
+PR-AUC                           1.000         0.997        0.975
+Expected Calibration Error        0.000         0.072        0.069
+
+
+Clinical + PET confusion matrices
+
+Validation:
+
+- TN = 3 out of ideal 8
+- FP = 5, ideal is 0
+- FN = 1, ideal is 0
+- TP = 68 out of ideal 69
+
+Test:
+
+- TN = 5 out of ideal 9
+- FP = 4, ideal is 0
+- FN = 1, ideal is 0
+- TP = 68 out of ideal 69
+
+
+Clinical + PET interpretation
+
+The combined model performed very well overall, especially on the test set.
+
+Validation ROC-AUC was excellent:
+
+- Validation ROC-AUC = 0.975
+
+Test ROC-AUC was lower:
+
+- Test ROC-AUC = 0.857
+
+This means the model ranked patients extremely well on validation, but less
+perfectly on test. Still, a test ROC-AUC of 0.857 is good and clearly better
+than random.
+
+Accuracy improved from validation to test:
+
+- Validation accuracy = 0.922
+- Test accuracy = 0.936
+
+This means the combined model classified the test patients slightly better than
+the validation patients using the 0.5 threshold.
+
+Balanced accuracy also improved:
+
+- Validation balanced accuracy = 0.680
+- Test balanced accuracy = 0.771
+
+This is important because balanced accuracy considers both HPV positive and HPV
+negative patients. The improvement happened because the model handled HPV
+negative patients better on test than on validation.
+
+Sensitivity was excellent and stable:
+
+- Validation sensitivity = 0.986
+- Test sensitivity = 0.986
+
+In both validation and test, the model missed only 1 HPV positive patient.
+
+Specificity improved:
+
+- Validation specificity = 0.375
+- Test specificity = 0.556
+
+On validation, the model correctly detected 3 out of 8 HPV negative patients. On
+test, it correctly detected 5 out of 9 HPV negative patients.
+
+The Brier Score stayed low:
+
+- Validation Brier Score = 0.058
+- Test Brier Score = 0.065
+
+This means the predicted probabilities were fairly good, although not perfect.
+
+Expected Calibration Error stayed similar and slightly improved:
+
+- Validation ECE = 0.072
+- Test ECE = 0.069
+
+Because lower is better, this suggests the test probabilities were slightly more
+calibrated than validation probabilities.
+
+Overall:
+The combined model was strong. It had the best test accuracy, best test balanced
+accuracy, best test sensitivity, best test F1-score, and good calibration. Its
+main weakness is that test ROC-AUC was lower than validation ROC-AUC and lower
+than the clinical-only test ROC-AUC.
+
+
+6. Comparison across the three experiments
+
+Test results summary
+
+Metric                           Clinical-only      PET-only      Clinical + PET
+ROC-AUC                              0.940            0.549            0.857
+Accuracy                             0.897            0.872            0.936
+Balanced Accuracy                    0.749            0.541            0.771
+Sensitivity                          0.942            0.971            0.986
+Specificity                          0.556            0.111            0.556
+Precision                            0.942            0.893            0.944
+F1-score                             0.942            0.931            0.965
+Brier Score                          0.078            0.120            0.065
+PR-AUC                               0.992            0.906            0.975
+Expected Calibration Error            0.085            0.130            0.069
+
+
+Best test result by metric
+
+- Best ROC-AUC: Clinical-only, 0.940
+- Best accuracy: Clinical + PET, 0.936
+- Best balanced accuracy: Clinical + PET, 0.771
+- Best sensitivity: Clinical + PET, 0.986
+- Best specificity: Clinical-only and Clinical + PET, both 0.556
+- Best precision: Clinical + PET, 0.944
+- Best F1-score: Clinical + PET, 0.965
+- Best Brier Score: Clinical + PET, 0.065, because lower is better
+- Best PR-AUC: Clinical-only, 0.992
+- Best Expected Calibration Error: Clinical + PET, 0.069, because lower is better
+
+
+7. Final interpretation
+
+Clinical-only:
+This model was the most stable between validation and test for ROC-AUC. It also
+had the best test ROC-AUC. This suggests the clinical features contained strong
+and reliable information for ranking HPV positive vs HPV negative patients.
+
+PET-only:
+This model had high sensitivity but very low specificity. It mostly predicted
+patients as HPV positive. Its test ROC-AUC dropped close to random, so PET
+radiomics alone did not work well on the final test set.
+
+Clinical + PET:
+This model had the best overall test classification performance. It had the best
+test accuracy, balanced accuracy, sensitivity, precision, F1-score, Brier Score,
+and calibration error. It missed only 1 HPV positive patient on the test set.
+However, its test ROC-AUC was lower than clinical-only, meaning clinical-only was
+better at ranking patients by probability.
+
+
+8. Simple conclusion for the internship report
+
+The ideal model would have values close to 1.0 for ROC-AUC, accuracy, balanced
+accuracy, sensitivity, specificity, precision, F1-score, and PR-AUC, while having
+values close to 0.0 for Brier Score and Expected Calibration Error.
+
+In our results, no model was perfect. All models were better at detecting HPV
+positive patients than HPV negative patients because the dataset had many more
+HPV positive cases.
+
+The clinical-only model gave the best probability ranking on the test set.
+
+The PET-only model struggled the most, especially with HPV negative patients.
+
+The clinical + PET model gave the strongest overall classification result on the
+test set, but adding PET features did not improve every metric compared with
+clinical-only.

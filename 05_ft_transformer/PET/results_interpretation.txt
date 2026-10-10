@@ -1,0 +1,95 @@
+PET-only FT-Transformer results interpretation
+
+Model setup
+- Input file: pet_features.csv
+- Target: HPV Status
+- Model: Keras FT-Transformer for tabular binary classification.
+- PatientID was not used as an input feature.
+- Input feature count: 107
+- Existing train/validation/test split files were reused.
+- No new split was created.
+- No hyperparameter tuning was performed.
+- No feature selection, feature filtering, or feature engineering was performed.
+- No scaling or normalization was applied.
+- No manual imputation was performed.
+- Fixed classification threshold: 0.5.
+- Feature importance and SHAP displays were limited to the top 10 features.
+
+Numerical metric interpretation
+Validation:
+- ROC-AUC: 0.884
+- Accuracy: 0.896
+- Balanced Accuracy: 0.500
+- Sensitivity: 1.000
+- Specificity: 0.000
+- Precision: 0.896
+- F1-score: 0.945
+- Confusion Matrix: [[0, 8], [0, 69]]
+- Brier Score: 0.073
+- PR-AUC: 0.983
+- Expected Calibration Error (ECE): 0.050
+
+Test:
+- ROC-AUC: 0.638
+- Accuracy: 0.885
+- Balanced Accuracy: 0.500
+- Sensitivity: 1.000
+- Specificity: 0.000
+- Precision: 0.885
+- F1-score: 0.939
+- Confusion Matrix: [[0, 9], [0, 69]]
+- Brier Score: 0.099
+- PR-AUC: 0.915
+- Expected Calibration Error (ECE): 0.036
+
+Detailed numerical metrics interpretation
+The PET-only FT-Transformer has a mixed result. The validation ROC-AUC is 0.884, which means the predicted probabilities have some ranking ability on validation. However, test ROC-AUC drops to 0.638, showing much weaker generalization on unseen test patients.
+
+Raw accuracy looks high, but it is misleading. Validation accuracy is 0.896 and test accuracy is 0.885, but this happens because the dataset is mostly HPV positive and the model predicts every patient as HPV positive at the fixed 0.5 threshold.
+
+Balanced Accuracy reveals the real classification problem. Validation Balanced Accuracy is 0.500 and test Balanced Accuracy is 0.500, which is chance-level balanced performance. This happens because sensitivity is perfect but specificity is zero.
+
+Sensitivity is 1.000 on validation and test. The model detected all 69 HPV-positive validation patients and all 69 HPV-positive test patients. This is good for the positive class, but it is not enough for balanced classification.
+
+Specificity is 0.000 on both splits. The model identified 0 of 8 HPV-negative validation patients and 0 of 9 HPV-negative test patients. Every negative patient was classified as HPV positive. This is the main weakness of the PET-only FT-Transformer under the no-scaling and fixed-threshold rules.
+
+Precision and F1-score remain high because HPV-positive patients dominate the dataset. Test precision is 0.885 and test F1-score is 0.939, but these values should be interpreted carefully because the model never predicts the negative class.
+
+The Brier Score and ECE are not terrible, especially validation ECE of 0.050 and test ECE of 0.036. This means the probabilities are not wildly miscalibrated overall, but calibration does not solve the fixed-threshold classification issue. A model can have reasonable probability calibration and still fail to produce negative predictions at threshold 0.5.
+
+ROC curve interpretation
+The validation ROC-AUC is 0.884, so the PET model has some ability to rank HPV-positive patients above HPV-negative patients on validation. The test ROC-AUC is only 0.638, which is much weaker. This validation-test gap suggests the PET-only FT-Transformer is less stable than the clinical and merged models.
+
+Precision-recall curve interpretation
+The PR-AUC is 0.983 on validation and 0.915 on test. These values are high, but the positive class is very common. Because specificity is 0.000, the PR curve should not be read as proof of a clinically balanced classifier. The PET model is strongly biased toward the HPV-positive class at the fixed threshold.
+
+Calibration curve and calibration table interpretation
+The calibration results are better than the confusion matrix might suggest. Validation ECE is 0.050 and test ECE is 0.036. Test Brier Score is 0.099. This means the probability estimates are somewhat reasonable, but most predicted probabilities still fall on the HPV-positive side of the 0.5 threshold.
+
+Confusion matrix heatmap interpretation
+The validation confusion matrix is [[0, 8], [0, 69]]. The test confusion matrix is [[0, 9], [0, 69]]. This means the model predicts every validation and test patient as HPV positive. It misses no HPV-positive patients, but it also detects no HPV-negative patients.
+
+Probability distribution plot interpretation
+The probability distribution plot should show most patients receiving probabilities above the 0.5 threshold. HPV-negative and HPV-positive patients overlap heavily, and the negative patients are not pushed below 0.5. This explains the perfect sensitivity and zero specificity.
+
+Feature importance plot interpretation
+The top permutation importance features were PET_original_gldm_LargeDependenceLowGrayLevelEmphasis, PET_original_glrlm_RunVariance, PET_original_shape_Elongation, PET_original_firstorder_Skewness, PET_original_glcm_MaximumProbability, PET_original_glrlm_LongRunLowGrayLevelEmphasis, PET_original_glcm_Contrast, PET_original_glcm_DifferenceVariance, PET_original_glcm_Idm, and PET_original_glszm_SmallAreaHighGrayLevelEmphasis.
+
+These are mainly PET radiomic texture, gray-level, run-length, and shape features. This means the PET-only model is learning from radiomic patterns, but those patterns are not enough to separate HPV-negative patients at the fixed 0.5 threshold.
+
+SHAP summary plot interpretation
+The strongest SHAP features were PET_original_gldm_LargeDependenceLowGrayLevelEmphasis, PET_original_glrlm_RunVariance, PET_original_glrlm_LongRunLowGrayLevelEmphasis, PET_original_firstorder_Skewness, PET_original_glcm_DifferenceVariance, PET_original_shape_Elongation, PET_original_glcm_Idm, PET_original_glcm_MaximumProbability, PET_original_glszm_SmallAreaHighGrayLevelEmphasis, and PET_original_glcm_Contrast.
+
+The SHAP summary agrees with permutation importance: PET texture and gray-level features dominate this model.
+
+SHAP dependence plot interpretation
+The automatically selected dependence feature was PET_original_gldm_LargeDependenceLowGrayLevelEmphasis. This feature had the largest mean absolute SHAP contribution among the top-10 selected PET features. The dependence plot shows how this PET texture feature changes the predicted HPV-positive probability contribution.
+
+SHAP heatmap interpretation
+The SHAP heatmap shows that PET texture features repeatedly influence individual validation samples. However, the patient-level explanations do not translate into useful negative-class classification at threshold 0.5. The model has signal, but the thresholded classification remains all-positive.
+
+Training loss curve interpretation
+Training loss decreased from 0.439 at epoch 1 to 0.299 at epoch 60. Validation loss decreased from 0.338 to 0.249. Training ROC-AUC increased from 0.460 to 0.782, and validation ROC-AUC ended at 0.886. The model learned something from PET features, but the final confusion matrix shows that the learned scores did not cross the threshold in a balanced way.
+
+Overall conclusion
+The PET-only FT-Transformer is the weakest of the three Week 12 FT runs. It has some probability ranking ability, especially on validation, but the fixed-threshold classification is all-positive. The biggest limitation is specificity of 0.000 on validation and test. PET radiomic features carry some signal, but without scaling, resampling, threshold tuning, or clinical variables, this model is not reliable for balanced HPV classification.

@@ -1,0 +1,580 @@
+Deeper Understanding of How LightGBM Worked in the HPV Classification Experiments
+
+This file explains more deeply how the LightGBM model worked in the three
+experiments:
+
+- Clinical-only
+- PET-only
+- Clinical + PET combined
+
+The goal was binary classification: predicting if a patient is HPV negative or
+HPV positive.
+
+
+1. The model did not see images or raw medical text directly
+
+LightGBM did not directly read PET scan images. It also did not understand the
+clinical file like a human doctor reading a report.
+
+Instead, every patient was converted into a row of numbers or categories.
+
+For example, one patient row could look like this:
+
+- Age = 63
+- Gender = 1
+- Tobacco Consumption = 0
+- M-stage = M0
+- PET_original_shape_Maximum2DDiameterSlice = some numeric value
+- many other PET features = numeric values
+
+This row is called the input features, usually written as X.
+
+The answer the model had to learn was HPV status, usually written as y:
+
+- y = 0 means HPV negative
+- y = 1 means HPV positive
+
+So the model learned from examples like:
+
+"For this group of feature values, the real HPV status was 1."
+
+After seeing many examples, it learned patterns that helped it predict HPV status
+for new patients.
+
+
+2. What LightGBM is at its core
+
+LightGBM is a gradient boosting model based on decision trees.
+
+This has two important parts:
+
+1. Decision trees
+2. Boosting
+
+
+3. Decision trees in simple terms
+
+A decision tree works by asking questions about the input features.
+
+Example questions could be:
+
+- Is Age less than 60?
+- Is M-stage equal to M0?
+- Is a PET texture feature greater than a certain value?
+- Is a shape feature smaller than a certain value?
+
+Each question splits the patients into groups.
+
+The model tries to choose questions that separate the HPV positive and HPV
+negative patients as well as possible.
+
+For example, if one split creates a group where almost all patients are HPV
+positive, that split is useful. If another split creates a group with mixed
+patients and no clear pattern, it is less useful.
+
+At the end of a tree, each patient lands in a final group called a leaf.
+
+Each leaf gives a score. This score is not yet the final class. It is part of the
+model's confidence about HPV positivity.
+
+
+4. Boosting: why LightGBM uses many trees
+
+LightGBM does not train only one tree.
+
+It builds many trees step by step. This is called boosting.
+
+The idea is:
+
+1. The model starts with a basic prediction.
+2. It checks where it made mistakes.
+3. It builds a new tree to correct those mistakes.
+4. It repeats this process many times.
+
+Each new tree is like a correction added to the previous model.
+
+This is different from a normal single decision tree. A single tree can be too
+simple or can overfit. LightGBM uses many small trees together, so the final model
+is usually stronger than one tree alone.
+
+
+5. What "gradient" means here
+
+The word "gradient" sounds mathematical, but the idea is simple.
+
+During training, LightGBM measures how wrong its predictions are. For binary
+classification, it usually uses a loss function related to probability error.
+
+If the true label is HPV positive but the model gives a low probability, the
+error is large.
+
+If the true label is HPV negative but the model gives a high probability, the
+error is also large.
+
+The gradient tells the model the direction to move in order to reduce this error.
+
+So each new tree is trained to reduce the remaining mistakes from the trees
+before it.
+
+
+6. What binary classification means in these scripts
+
+In the scripts, the LightGBM model was created with:
+
+objective = "binary"
+
+This tells LightGBM:
+
+"There are two classes, and the model should learn the probability of class 1."
+
+In this project, class 1 means HPV positive.
+
+That is why the scripts used:
+
+predict_proba(x)[:, 1]
+
+This means:
+
+"Give me the predicted probability of HPV positive."
+
+For each patient, the model produced a number between 0 and 1.
+
+Examples:
+
+- 0.03 means very likely HPV negative
+- 0.55 means slightly more likely HPV positive
+- 0.98 means very likely HPV positive
+
+
+7. How probabilities became final predictions
+
+The scripts used a threshold of 0.5.
+
+This means:
+
+- probability below 0.5 becomes HPV negative
+- probability equal to or above 0.5 becomes HPV positive
+
+Example:
+
+- Patient A probability = 0.91, prediction = HPV positive
+- Patient B probability = 0.42, prediction = HPV negative
+
+The threshold is important because the model itself gives probabilities, not just
+labels.
+
+If the threshold changed, the confusion matrix, sensitivity, specificity,
+precision, and F1-score could also change.
+
+
+8. Why the training split is important
+
+The model learned only from the train set.
+
+The validation and test sets were not used to teach the model. They were used to
+check whether the model learned useful patterns that generalize to unseen
+patients.
+
+This is important because a model can memorize the training data. Good machine
+learning is not only about doing well on training patients. It is about doing
+well on new patients.
+
+In these experiments:
+
+- Train had 359 patients
+- Validation had 77 patients
+- Test had 78 patients
+
+The same patient splits were reused across the three experiments, which makes the
+comparison fairer.
+
+
+9. Why PatientID was used but not learned as a feature
+
+PatientID was used to match rows correctly.
+
+For example:
+
+- train.csv said which patients belong to the training set
+- the clinical file contained clinical features for those PatientID values
+- the PET file contained PET features for those PatientID values
+
+But PatientID itself was not used as a learning feature.
+
+This is good because PatientID is only an identifier. It should not contain real
+medical information. If the model learned from PatientID, it could memorize
+patients instead of learning medical patterns.
+
+
+10. How the clinical-only input worked
+
+The clinical-only model used 8 clinical features:
+
+- CenterID
+- Age
+- Gender
+- Tobacco Consumption
+- Alcohol Consumption
+- Performance Status
+- Treatment
+- M-stage
+
+The model used these features to learn clinical patterns related to HPV status.
+
+For example, LightGBM could learn that some combinations of age, treatment,
+center, and M-stage are more often associated with HPV positive or HPV negative
+patients.
+
+The model does not need the programmer to manually write rules like:
+
+"If Age is below this and M-stage is this, then predict HPV positive."
+
+Instead, LightGBM searches for useful splits by itself during training.
+
+
+11. How the PET-only input worked
+
+The PET-only model used 107 PET radiomics features.
+
+Radiomics features are numerical descriptions extracted from medical images.
+They can describe things such as:
+
+- tumor shape
+- size
+- intensity
+- texture
+- how values are distributed inside the image region
+
+The model did not know the medical meaning of each feature like a human expert.
+It only saw columns of numbers. During training, it searched for PET feature
+values that helped separate HPV positive and HPV negative patients.
+
+The PET-only script did not do scaling or normalization.
+
+This is acceptable for LightGBM because decision-tree models work by splitting
+values. A tree can ask:
+
+"Is this PET feature greater than 12.7?"
+
+Scaling is usually more important for models based on distances or gradients in
+the raw input space, such as logistic regression, support vector machines, or
+neural networks. Tree models are less sensitive to feature scale.
+
+
+12. How the clinical + PET combined input worked
+
+The combined model joined clinical and PET data using PatientID.
+
+After merging, each patient had:
+
+- 8 clinical features
+- 107 PET features
+- 115 total input features
+
+This gave LightGBM more information to choose from.
+
+The model could use clinical questions and PET questions in the same set of
+trees. For example, one tree could split first using a clinical feature, then
+split again using a PET feature.
+
+This is one reason combined models can sometimes perform better: the model has
+more possible signals.
+
+But more features do not always guarantee better results. Extra features can
+also add noise, especially when the dataset is not very large.
+
+
+13. How LightGBM handled categorical features
+
+Some clinical columns are categories, not continuous numbers.
+
+Examples:
+
+- Gender
+- Treatment
+- M-stage
+- Tobacco Consumption
+- Alcohol Consumption
+
+In the combined experiment, these were passed to LightGBM as categorical
+features:
+
+- CenterID
+- Gender
+- Tobacco Consumption
+- Alcohol Consumption
+- Performance Status
+- Treatment
+- M-stage
+
+This means LightGBM could treat them as groups/categories rather than as normal
+continuous measurements.
+
+That is important because a category value does not always have a normal numeric
+meaning. For example, category 2 is not necessarily "twice" category 1.
+
+
+14. What the model actually learned
+
+The model learned many small rules from the training data.
+
+These rules were not written by hand. LightGBM found them by testing different
+feature splits and keeping the ones that reduced prediction error.
+
+A simplified version of the learned logic might look like:
+
+- Some M-stage values increase the probability of HPV positive.
+- Some PET shape values push the probability up or down.
+- Some combinations of clinical features and PET features are more predictive
+  than individual features alone.
+
+The real model is more complex than this because it is made of many trees and
+many leaves.
+
+The important idea is:
+
+LightGBM learned patterns from feature values, not from the raw files themselves.
+
+
+15. Why class imbalance matters
+
+The dataset had many more HPV positive patients than HPV negative patients.
+
+For example, in the train set:
+
+- HPV negative: 40
+- HPV positive: 319
+
+This means around 89 percent of the training patients were HPV positive.
+
+Because of this, a model can get high accuracy by predicting HPV positive most
+of the time.
+
+That is why specificity and balanced accuracy are important.
+
+Sensitivity tells us how well the model finds HPV positive patients.
+
+Specificity tells us how well the model finds HPV negative patients.
+
+In the PET-only test results, sensitivity was high but specificity was very low.
+This means the model found most HPV positive patients but struggled to correctly
+identify HPV negative patients.
+
+
+16. Why validation and test results can differ
+
+The PET-only model had strong validation ROC-AUC but weak test ROC-AUC.
+
+This can happen for several reasons:
+
+- the validation patients may be easier than the test patients
+- the PET features may contain patterns that do not generalize well
+- the dataset is relatively small
+- the HPV negative class has very few patients
+- the model may have learned patterns that are not stable across splits
+
+This does not mean the code is wrong. It means the test set gave a more honest
+view of how PET-only features performed on unseen patients.
+
+
+17. Understanding ROC-AUC more deeply
+
+ROC-AUC does not depend on the 0.5 threshold.
+
+It checks whether the model gives higher probabilities to HPV positive patients
+than to HPV negative patients.
+
+Example:
+
+If an HPV positive patient gets probability 0.95 and an HPV negative patient gets
+probability 0.10, that ranking is good.
+
+If the HPV negative patient gets 0.97 and the HPV positive patient gets 0.40,
+that ranking is bad.
+
+So ROC-AUC is about ranking quality.
+
+This is why a model can have good accuracy but weaker ROC-AUC, or strong ROC-AUC
+but not perfect classification at threshold 0.5.
+
+
+18. Understanding accuracy more deeply
+
+Accuracy is:
+
+correct predictions / total predictions
+
+But because most patients are HPV positive, accuracy can be high even if the
+model misses many HPV negative patients.
+
+For example, if almost all patients are HPV positive, predicting HPV positive
+for everyone can already look good by accuracy.
+
+That is why accuracy should not be read alone in this project.
+
+
+19. Understanding sensitivity and specificity more deeply
+
+Sensitivity asks:
+
+"Out of all real HPV positive patients, how many did the model correctly predict
+as positive?"
+
+Specificity asks:
+
+"Out of all real HPV negative patients, how many did the model correctly predict
+as negative?"
+
+In medical classification, both can matter.
+
+High sensitivity means fewer HPV positive patients are missed.
+
+High specificity means fewer HPV negative patients are incorrectly called HPV
+positive.
+
+Because the negative class is small in this dataset, specificity can change a lot
+when only a few predictions change.
+
+
+20. Understanding calibration
+
+Calibration checks whether probabilities are realistic.
+
+Example:
+
+If the model gives 100 patients a probability around 0.90, then ideally about 90
+of those patients should truly be HPV positive.
+
+A model can classify patients correctly but still be badly calibrated. That means
+its probabilities may be too confident or not confident enough.
+
+The scripts used calibration curves and Expected Calibration Error to study this.
+
+
+21. Understanding feature importance
+
+LightGBM feature importance shows which features were useful inside the trees.
+
+There are two common types:
+
+- split importance: how often a feature was used for splits
+- gain importance: how much a feature improved the model when it was used
+
+The scripts mainly used gain importance when possible.
+
+If a feature has high gain importance, it means the model often used it in a way
+that strongly reduced prediction error.
+
+Feature importance does not prove medical causation. It only says:
+
+"This feature helped the model make predictions."
+
+
+22. Understanding SHAP plots
+
+SHAP is used to explain model predictions.
+
+It tries to estimate how much each feature pushed a prediction up or down.
+
+For this project:
+
+- pushing up means increasing the probability of HPV positive
+- pushing down means decreasing the probability of HPV positive
+
+A SHAP summary plot shows which features had the biggest overall influence.
+
+A SHAP dependence plot shows how one feature's value affected predictions.
+
+A SHAP heatmap shows feature effects across many patients.
+
+SHAP is useful because LightGBM can be hard to understand directly. The model is
+made of many trees, so SHAP gives a more readable explanation of feature effects.
+
+
+23. What happened in the three experiments
+
+Clinical-only:
+
+The clinical-only model performed strongly on both validation and test. It had a
+test ROC-AUC of 0.940 and test accuracy of 0.897.
+
+This suggests the selected clinical features contained strong information related
+to HPV status.
+
+PET-only:
+
+The PET-only model used 107 radiomics features. It had validation ROC-AUC of
+0.900 but test ROC-AUC of only 0.549.
+
+This means the PET-only model did not separate HPV positive and HPV negative
+patients well on the final test set. It mostly predicted HPV positive, giving
+high sensitivity but very low specificity.
+
+Clinical + PET:
+
+The combined model used 115 total features. It had test accuracy of 0.936 and
+test F1-score of 0.965. It correctly detected 68 out of 69 HPV positive patients
+in the test set.
+
+Its test ROC-AUC was 0.857, which was lower than the clinical-only test ROC-AUC.
+
+This shows that combining data improved some metrics, like accuracy and F1-score,
+but did not improve every metric. The clinical-only model ranked patients better
+by ROC-AUC on the test set.
+
+
+24. Why adding PET features did not improve everything
+
+It is natural to expect that more features should always improve the model, but
+machine learning does not always work that way.
+
+Possible reasons:
+
+- PET features may contain noise.
+- Some PET features may be weakly related to HPV status.
+- There may be too many PET features compared with the number of patients.
+- The model may learn patterns that work in training/validation but not as well
+  in test.
+- Clinical features may already contain most of the useful signal.
+
+This is an important internship lesson:
+
+More data columns do not automatically mean better generalization.
+
+
+25. How to describe the model in a report
+
+A strong but clear explanation could be:
+
+"LightGBM was used as a binary classifier to predict HPV status. Each patient was
+represented by a feature vector containing either clinical variables, PET
+radiomics variables, or both. The model trained an ensemble of boosted decision
+trees on the training split. Each tree learned feature-based splits that reduced
+the classification error left by previous trees. For validation and test
+patients, the final ensemble produced an HPV-positive probability. A threshold of
+0.5 converted this probability into HPV negative or HPV positive predictions.
+Performance was evaluated using ROC-AUC, accuracy, balanced accuracy,
+sensitivity, specificity, precision, F1-score, Brier score, PR-AUC, calibration
+tables, confusion matrices, and interpretability plots such as feature importance
+and SHAP."
+
+
+26. Final deeper conclusion
+
+The LightGBM model worked by turning patient data into structured feature tables,
+then learning many decision-tree rules from the training patients.
+
+It did not memorize the CSV files directly. It learned relationships between
+feature values and HPV status.
+
+Clinical data gave strong and stable predictive information. PET-only radiomics
+features were less reliable on the final test set. The combined model benefited
+from using both clinical and PET information for some metrics, but the results
+also showed that more features can add complexity and do not guarantee better
+ROC-AUC.
+
+The most important understanding is:
+
+LightGBM is not one rule. It is many small decision trees working together. Each
+tree corrects earlier mistakes, and the final prediction is a probability built
+from the combined score of all trees.

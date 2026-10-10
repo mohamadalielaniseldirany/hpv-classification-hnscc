@@ -1,0 +1,131 @@
+PET-only MLP results interpretation
+
+Model setup
+- Input file: pet_features.csv
+- Target: HPV Status
+- PatientID was not used as an input feature.
+- CenterID was explicitly ignored.
+- Input feature count: 107
+- Current official PET model: StandardScaler + SMOTE
+- StandardScaler was fitted on the training features only.
+- The fitted scaler was then applied to validation and test features.
+- SMOTE was applied only to the training set.
+- Threshold remained fixed at 0.5.
+
+Before/after scaling comparison
+Before scaling, the PET-only model behaved like an almost all-positive classifier.
+
+Before scaling validation:
+- ROC-AUC: 0.507
+- Accuracy: 0.896
+- Balanced Accuracy: 0.500
+- Sensitivity: 1.000
+- Specificity: 0.000
+- Precision: 0.896
+- F1-score: 0.945
+- Confusion Matrix: [[0, 8], [0, 69]]
+- Brier Score: 0.230
+- PR-AUC: 0.898
+- ECE: 0.370
+
+Before scaling test:
+- ROC-AUC: 0.500
+- Accuracy: 0.885
+- Balanced Accuracy: 0.500
+- Sensitivity: 1.000
+- Specificity: 0.000
+- Precision: 0.885
+- F1-score: 0.939
+- Confusion Matrix: [[0, 9], [0, 69]]
+- Brier Score: 0.232
+- PR-AUC: 0.885
+- ECE: 0.361
+
+After StandardScaler validation:
+- ROC-AUC: 0.826
+- Accuracy: 0.831
+- Balanced Accuracy: 0.574
+- Sensitivity: 0.899
+- Specificity: 0.250
+- Precision: 0.912
+- F1-score: 0.905
+- Confusion Matrix: [[2, 6], [7, 62]]
+- Brier Score: 0.130
+- PR-AUC: 0.978
+- ECE: 0.159
+
+After StandardScaler test:
+- ROC-AUC: 0.621
+- Accuracy: 0.833
+- Balanced Accuracy: 0.519
+- Sensitivity: 0.928
+- Specificity: 0.111
+- Precision: 0.889
+- F1-score: 0.908
+- Confusion Matrix: [[1, 8], [5, 64]]
+- Brier Score: 0.141
+- PR-AUC: 0.918
+- ECE: 0.147
+
+Detailed numerical metrics interpretation
+Before scaling, the PET-only model looked accurate only because the dataset contains many HPV-positive patients. Validation accuracy was 0.896 and test accuracy was 0.885, but Balanced Accuracy was only 0.500 on both splits. This means the model was not truly separating the two classes.
+
+Accuracy before scaling is misleading. The model had validation accuracy of 0.896 and test accuracy of 0.885, but this happened because most patients are HPV positive and the model predicted every patient as HPV positive. So the high accuracy did not mean the model was clinically balanced.
+
+Balanced Accuracy before scaling showed the real problem. It was 0.500 on validation and 0.500 on test, which is chance-level performance for balanced class evaluation. This confirmed that the model ignored the HPV-negative class.
+
+The main problem before scaling was specificity. Specificity was 0.000 on validation and 0.000 on test. The confusion matrices were [[0, 8], [0, 69]] on validation and [[0, 9], [0, 69]] on test, meaning the model predicted every patient as HPV positive.
+
+After StandardScaler, the PET model improved. Validation ROC-AUC increased from 0.507 to 0.826, and test ROC-AUC increased from 0.500 to 0.621. This means the scaled PET features helped the MLP rank HPV-positive and HPV-negative patients better.
+
+After scaling, accuracy decreased slightly because the model stopped predicting everyone as positive. Validation accuracy changed from 0.896 to 0.831, and test accuracy changed from 0.885 to 0.833. This lower accuracy is not automatically bad, because the model started identifying some HPV-negative patients.
+
+Balanced Accuracy improved after scaling. Validation Balanced Accuracy improved from 0.500 to 0.574, and test Balanced Accuracy improved from 0.500 to 0.519. The improvement is modest, but it shows that scaling helped the model begin to handle both classes instead of only the majority HPV-positive class.
+
+Specificity also improved after scaling, but it remained weak. Validation specificity improved from 0.000 to 0.250, and test specificity improved from 0.000 to 0.111. The test model correctly identified only 1 of 9 HPV-negative patients after scaling, so PET-only is still not strong for detecting HPV-negative cases.
+
+Calibration improved strongly after scaling. Test Brier Score improved from 0.232 to 0.141, and test ECE improved from 0.361 to 0.147. This means the scaled PET model gives more useful probabilities, even though class separation is still limited.
+
+Overall, the metrics show that StandardScaler + SMOTE is better than unscaled PET, but PET-only remains weaker than clinical-only and merged.
+
+Before/after scaling plot interpretation
+The before/after scaling plot shows that StandardScaler improved ROC-AUC, Brier Score, ECE, and specificity. The biggest visual improvement is that the model stopped being purely all-positive. However, specificity is still weak, especially on test where it is only 0.111.
+
+ROC curve interpretation
+After scaling, the validation ROC-AUC is 0.826 and the test ROC-AUC is 0.621. This means scaling helped the model rank HPV-positive and HPV-negative patients better. However, the gap between validation and test is large. The PET model has weaker generalization than the clinical model.
+
+Precision-recall curve interpretation
+The PR-AUC is 0.978 on validation and 0.918 on test after scaling. These values are high because HPV-positive patients are the majority class and the model is still biased toward predicting positives. The PR curve is useful, but it should be interpreted together with specificity and Balanced Accuracy.
+
+Calibration curve and calibration table interpretation
+Scaling improved calibration clearly. Validation ECE improved from 0.370 to 0.159, and test ECE improved from 0.361 to 0.147. Brier Score improved from 0.230 to 0.130 on validation and from 0.232 to 0.141 on test. The probabilities are still not perfect, but the scaled PET model is much better calibrated than the unscaled PET model.
+
+Confusion matrix heatmap interpretation
+Before scaling, the PET model had confusion matrices [[0, 8], [0, 69]] on validation and [[0, 9], [0, 69]] on test. It detected every HPV-positive patient but detected no HPV-negative patient.
+
+After scaling, validation changed to [[2, 6], [7, 62]], and test changed to [[1, 8], [5, 64]]. This is an improvement because the model now identifies some HPV-negative patients, but it still misses most HPV-negative patients.
+
+Probability distribution plot interpretation
+The probability distribution plot still shows many patients receiving high HPV-positive probabilities. This explains why sensitivity remains high but specificity remains low. Scaling improves separation, but the positive and negative distributions still overlap strongly.
+
+Feature importance plot interpretation
+The top permutation importance features after scaling were PET_original_shape_Maximum2DDiameterSlice, PET_original_glcm_DifferenceVariance, PET_original_shape_Sphericity, PET_original_shape_Elongation, PET_original_glszm_SizeZoneNonUniformity, PET_original_gldm_SmallDependenceEmphasis, PET_original_glcm_MaximumProbability, PET_original_glszm_SmallAreaHighGrayLevelEmphasis, PET_original_firstorder_Kurtosis, and PET_original_glszm_GrayLevelNonUniformity.
+
+The PET model is mostly using radiomic shape and texture information rather than clinical information.
+
+SHAP summary plot interpretation
+The strongest SHAP feature was PET_original_shape_Maximum2DDiameterSlice. Other important SHAP features included PET_original_shape_Flatness, PET_original_glcm_Imc1, PET_original_shape_Sphericity, PET_original_shape_Elongation, PET_original_firstorder_Kurtosis, PET_original_glrlm_GrayLevelNonUniformity, PET_original_glszm_GrayLevelNonUniformity, PET_original_shape_SurfaceVolumeRatio, and PET_original_glcm_MaximumProbability.
+
+This agrees with the feature importance plot: PET shape and texture features dominate the PET-only predictions.
+
+SHAP dependence plot interpretation
+The automatically selected dependence feature was PET_original_shape_Maximum2DDiameterSlice. This plot shows that this tumor shape/size-related feature has a visible effect on the model output. The relationship is not perfectly linear, which is expected for an MLP.
+
+SHAP heatmap interpretation
+The SHAP heatmap shows that PET_original_shape_Maximum2DDiameterSlice repeatedly influences many validation patients. Other PET shape and texture features also contribute, but the heatmap suggests the PET model is less stable and less clinically clean than the clinical-only model.
+
+Training loss curve interpretation
+The training loss decreased from 0.665 to 0.073, while validation loss ended around 0.463. Training ROC-AUC became very high, but validation ROC-AUC was lower. This indicates overfitting: the PET model learns the training data strongly, but the validation and test results are weaker.
+
+Overall conclusion
+StandardScaler + SMOTE improves the PET-only model, but PET-only remains weaker than clinical-only and merged. The main limitation is poor specificity. PET features carry some useful information, especially shape and texture information, but the model still struggles to identify HPV-negative patients at threshold 0.5.

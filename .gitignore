@@ -1,0 +1,30 @@
+# Patient data (HECKTOR licence) - never commit
+*.csv
+!02_preprocessing/results/*_missing_summary.csv
+DATA_SET/
+
+# Generated outputs and trained models
+plots/
+missing_data_reports/
+age_distribution_reports/
+*.h5
+*.keras
+*.pkl
+*.joblib
+*.txt.bak
+
+# Python / environments / caches
+__pycache__/
+*.pyc
+myenv/
+tfenv/
+.venv/
+venv/
+.matplotlib/
+.matplotlib_cache/
+matplotlib_cache/
+.numba_cache/
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store

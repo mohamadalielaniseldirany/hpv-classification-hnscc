@@ -1,0 +1,134 @@
+Merged clinical + PET MLP results interpretation
+
+Model setup
+- Input file: clinical_pet_merged_preprocessed.csv
+- Target: HPV Status
+- PatientID was not used as an input feature.
+- CenterID was explicitly ignored.
+- Input feature count: 120
+- Clinical features were kept unscaled.
+- PET features starting with PET_ were scaled with StandardScaler.
+- StandardScaler was fitted on the training PET features only.
+- The fitted scaler was then applied to validation and test PET features.
+- SMOTENC was applied only to the training set.
+- Threshold remained fixed at 0.5.
+
+Before/after PET-column scaling comparison
+Before PET-column scaling, the merged model behaved like an all-positive classifier.
+
+Before scaling validation:
+- ROC-AUC: 0.500
+- Accuracy: 0.896
+- Balanced Accuracy: 0.500
+- Sensitivity: 1.000
+- Specificity: 0.000
+- Precision: 0.896
+- F1-score: 0.945
+- Confusion Matrix: [[0, 8], [0, 69]]
+- Brier Score: 0.213
+- PR-AUC: 0.896
+- ECE: 0.346
+
+Before scaling test:
+- ROC-AUC: 0.500
+- Accuracy: 0.885
+- Balanced Accuracy: 0.500
+- Sensitivity: 1.000
+- Specificity: 0.000
+- Precision: 0.885
+- F1-score: 0.939
+- Confusion Matrix: [[0, 9], [0, 69]]
+- Brier Score: 0.214
+- PR-AUC: 0.885
+- ECE: 0.335
+
+After PET-column StandardScaler validation:
+- ROC-AUC: 0.976
+- Accuracy: 0.935
+- Balanced Accuracy: 0.743
+- Sensitivity: 0.986
+- Specificity: 0.500
+- Precision: 0.944
+- F1-score: 0.965
+- Confusion Matrix: [[4, 4], [1, 68]]
+- Brier Score: 0.041
+- PR-AUC: 0.997
+- ECE: 0.056
+
+After PET-column StandardScaler test:
+- ROC-AUC: 0.813
+- Accuracy: 0.910
+- Balanced Accuracy: 0.756
+- Sensitivity: 0.957
+- Specificity: 0.556
+- Precision: 0.943
+- F1-score: 0.950
+- Confusion Matrix: [[5, 4], [3, 66]]
+- Brier Score: 0.087
+- PR-AUC: 0.949
+- ECE: 0.092
+
+Detailed numerical metrics interpretation
+Before PET-column scaling, the merged model had the same major issue as the unscaled PET-only model. Validation accuracy was 0.896 and test accuracy was 0.885, but Balanced Accuracy was only 0.500 on both splits. The confusion matrices were [[0, 8], [0, 69]] on validation and [[0, 9], [0, 69]] on test, meaning the model predicted every patient as HPV positive.
+
+Accuracy before scaling was misleading. Validation accuracy was 0.896 and test accuracy was 0.885, but this was mainly because HPV-positive patients are the majority class. Since the model predicted all patients as HPV positive, it looked accurate while completely failing on HPV-negative patients.
+
+Balanced Accuracy before scaling revealed the real weakness. It was 0.500 on validation and 0.500 on test, which means chance-level balanced class performance. This is why the unscaled merged model was not acceptable despite its high raw accuracy.
+
+After scaling only the PET columns, the merged model improved strongly. Validation ROC-AUC increased from 0.500 to 0.976, and test ROC-AUC increased from 0.500 to 0.813. This shows that the merged model can use the PET information well once the PET feature scale problem is fixed.
+
+After PET-column scaling, accuracy improved beyond the misleading unscaled result. Validation accuracy increased from 0.896 to 0.935, and test accuracy increased from 0.885 to 0.910. Unlike before scaling, this accuracy is more meaningful because the model also detects HPV-negative patients.
+
+Balanced Accuracy also improved clearly. Validation Balanced Accuracy increased from 0.500 to 0.743, and test Balanced Accuracy increased from 0.500 to 0.756. This is important because Balanced Accuracy accounts for both HPV-positive and HPV-negative performance.
+
+Sensitivity stayed high after scaling. Validation sensitivity was 0.986, and test sensitivity was 0.957. On the test set, the model correctly detected 66 of 69 HPV-positive patients and missed only 3.
+
+Specificity improved from 0.000 to 0.500 on validation and from 0.000 to 0.556 on test. On the test set, the model correctly detected 5 of 9 HPV-negative patients. This is a major improvement over the unscaled merged model, which detected 0 of 9 HPV-negative test patients.
+
+Calibration also improved substantially. Test Brier Score improved from 0.214 to 0.087, and test ECE improved from 0.335 to 0.092. This means the scaled merged model gives much more trustworthy predicted probabilities.
+
+Overall, the numerical metrics show that the merged model becomes useful only after PET-column scaling. With scaling, it becomes competitive with the clinical-only model and much stronger than PET-only.
+
+Before/after scaling plot interpretation
+The before/after scaling plot shows a major improvement after scaling only PET columns. ROC-AUC, Balanced Accuracy, Specificity, Brier Score, and ECE all improved. This plot is one of the most important merged results because it shows that the poor merged model was not caused by merging itself. It was mainly caused by unscaled PET radiomic features destabilizing the MLP.
+
+ROC curve interpretation
+After PET-column scaling, validation ROC-AUC is 0.976 and test ROC-AUC is 0.813. The validation curve is very strong and the test curve is still clearly better than chance. The model now ranks HPV-positive patients above HPV-negative patients much better than before scaling.
+
+Precision-recall curve interpretation
+After scaling, PR-AUC is 0.997 on validation and 0.949 on test. This shows strong positive-class performance. Because the dataset is imbalanced toward HPV-positive patients, PR-AUC should be interpreted together with specificity. The merged model has better specificity than PET-only, so the strong PR-AUC is more meaningful here.
+
+Calibration curve and calibration table interpretation
+Calibration improved strongly after PET-column scaling. Validation ECE improved from 0.346 to 0.056, and test ECE improved from 0.335 to 0.092. Brier Score improved from 0.213 to 0.041 on validation and from 0.214 to 0.087 on test. This means the scaled merged model gives much more reliable probabilities than the unscaled merged model.
+
+Confusion matrix heatmap interpretation
+Before scaling, the merged model detected no HPV-negative patients: validation was [[0, 8], [0, 69]] and test was [[0, 9], [0, 69]].
+
+After scaling, validation improved to [[4, 4], [1, 68]], meaning it correctly detected 4 of 8 HPV-negative patients and 68 of 69 HPV-positive patients. Test improved to [[5, 4], [3, 66]], meaning it correctly detected 5 of 9 HPV-negative patients and 66 of 69 HPV-positive patients.
+
+This is a strong practical improvement. The model keeps high sensitivity while gaining real specificity.
+
+Probability distribution plot interpretation
+The probability distribution plot after scaling shows better separation than the unscaled merged model. Many HPV-positive patients still receive high predicted probabilities, but more HPV-negative patients now receive lower probabilities. This matches the improvement in specificity from 0.000 to 0.500 on validation and from 0.000 to 0.556 on test.
+
+Feature importance plot interpretation
+The top permutation feature was PET_original_glcm_ClusterShade with a mean ROC-AUC drop of 0.018. Other important features included PET_original_shape_Maximum2DDiameterSlice, Alcohol Consumption, PET_original_firstorder_Kurtosis, PET_original_shape_Sphericity, PET_original_shape_MinorAxisLength, PET_original_firstorder_90Percentile, PET_original_firstorder_Range, PET_original_shape_Elongation, and PET_original_glrlm_RunLengthNonUniformityNormalized.
+
+This shows that the merged model uses both PET radiomic features and clinical variables. Alcohol Consumption appears among the top features, while many other strong features are PET texture and shape variables.
+
+SHAP summary plot interpretation
+The SHAP summary plot shows that the strongest SHAP features were M-stage_M0, M-stage_Unknown, Alcohol Consumption, PET_original_shape_Maximum2DDiameterSlice, PET_original_glcm_MaximumProbability, PET_original_glcm_Imc1, PET_original_firstorder_Uniformity, PET_original_shape_Maximum2DDiameterColumn, Tobacco Consumption_missing, and Treatment.
+
+This is the best sign from the merged model: both clinical and PET features contribute. The model is not relying only on radiomics or only on clinical variables.
+
+SHAP dependence plot interpretation
+The automatically selected dependence feature was M-stage_M0. This means that, even in the merged model, clinical tumor-stage information remains one of the most influential drivers of the MLP output. The PET features improve the model, but M-stage still carries major explanatory power.
+
+SHAP heatmap interpretation
+The SHAP heatmap shows patient-level contributions from both clinical and PET variables. M-stage_M0 and M-stage_Unknown remain important across many validation samples. PET shape and texture features also appear in the heatmap, showing that the scaled PET features add useful information instead of overwhelming the clinical signal.
+
+Training loss curve interpretation
+The training loss decreased from 0.704 to 0.017, while validation loss ended around 0.113. Training ROC-AUC became almost perfect, and validation ROC-AUC ended around 0.976 in the training history. This suggests the model learned a strong signal. The large gap between training loss and validation loss suggests some overfitting risk, but the test ROC-AUC of 0.813 and test Balanced Accuracy of 0.756 show that the model still generalizes much better than the unscaled merged model.
+
+Overall conclusion
+The merged model becomes strong only after scaling the PET columns. Keeping clinical features unscaled and scaling only PET radiomics is the right strategy here. After PET-column scaling, the merged model combines clinical signals such as M-stage and alcohol consumption with PET shape and texture features. It performs much better than PET-only and becomes competitive with the clinical-only model, while improving specificity compared with the unscaled merged model.

@@ -1,0 +1,340 @@
+LightGBM Classification Summary - Clinical, PET, and Clinical + PET Experiments
+
+This summary explains, in simple terms, how the LightGBM model used the files in
+week567_lightgbm_classification to train a binary classifier and produce the
+results. The goal of the experiments was to predict HPV status:
+
+- 0 means HPV negative
+- 1 means HPV positive
+
+
+1. General idea of the work
+
+The project tested three different types of input data:
+
+1. Clinical-only:
+   Folder: week567_lightgbm_classification/Clinical_only
+   Script: clinical_classification.py
+   Input used by the model: clinical patient information only
+
+2. PET-only:
+   Folder: week567_lightgbm_classification/PET_only
+   Script: pet_classification.py
+   Input used by the model: PET radiomics features only
+
+3. Clinical + PET combined:
+   Folder: week567_lightgbm_classification/Clinical_PET_only
+   Script: combined.py
+   Input used by the model: clinical information plus PET radiomics features
+
+All three experiments used the same split idea:
+
+- train.csv: patients used to teach the model
+- validation.csv: patients used to check how the model performs during development
+- test.csv: patients used as the final unseen check
+
+The split sizes were:
+
+- Train: 359 patients, with 40 HPV negative and 319 HPV positive
+- Validation: 77 patients, with 8 HPV negative and 69 HPV positive
+- Test: 78 patients, with 9 HPV negative and 69 HPV positive
+
+This is important because the data is imbalanced. There are many more HPV
+positive patients than HPV negative patients. Because of that, accuracy can look
+good even when the model does not detect HPV negative patients very well.
+
+
+2. What LightGBM does in friendly terms
+
+LightGBM is a machine learning model based on decision trees.
+
+A decision tree is like a sequence of small questions. For example:
+
+- Is the patient age above a certain value?
+- Is a PET feature above a certain value?
+- Is the M-stage in a certain category?
+
+LightGBM does not build only one tree. It builds many small trees one after the
+other. Each new tree tries to correct the mistakes made by the earlier trees.
+This process is called boosting.
+
+At the end, the model gives each patient a probability of being HPV positive.
+For example:
+
+- probability = 0.92 means the model is very confident the patient is HPV positive
+- probability = 0.20 means the model thinks the patient is more likely HPV negative
+
+The scripts used a threshold of 0.5:
+
+- if probability is greater than or equal to 0.5, prediction = HPV positive
+- if probability is lower than 0.5, prediction = HPV negative
+
+
+3. Clinical-only experiment
+
+The clinical-only script used:
+
+- train.csv, validation.csv, test.csv
+- HECKTOR_2025_Training_Task_3.csv
+
+The split CSV files mainly provided the PatientID list for each split. The script
+then looked up those PatientID values inside the clinical CSV file.
+
+The clinical input features were:
+
+- CenterID
+- Age
+- Gender
+- Tobacco Consumption
+- Alcohol Consumption
+- Performance Status
+- Treatment
+- M-stage
+
+The target column was:
+
+- HPV Status
+
+In the clinical-only script, M-stage was explicitly treated as a categorical
+feature for LightGBM. The model trained on the clinical features from the train
+patients, then predicted probabilities for the validation and test patients.
+
+Clinical-only main results:
+
+- Validation ROC-AUC: 0.942
+- Validation accuracy: 0.935
+- Test ROC-AUC: 0.940
+- Test accuracy: 0.897
+- Test sensitivity: 0.942
+- Test specificity: 0.556
+
+Simple interpretation:
+
+The clinical-only model performed strongly. It was especially good at detecting
+HPV positive patients. On the test set, it correctly found 65 out of 69 HPV
+positive patients, and correctly found 5 out of 9 HPV negative patients.
+
+
+4. PET-only experiment
+
+The PET-only script used:
+
+- train.csv, validation.csv, test.csv
+- pet_features.csv
+
+In this experiment, the model did not use clinical columns. It used PET radiomics
+features. These are numerical measurements extracted from PET images, such as
+shape, intensity, and texture features.
+
+The script excluded:
+
+- PatientID, because it is only an identifier
+- HPV, because it is the answer/target, not an input feature
+
+The PET-only model used 107 PET radiomics features as input.
+
+The script converted the PET feature columns to numbers. It did not apply
+imputation, scaling, normalization, or feature selection. This is acceptable for
+LightGBM because tree-based models do not require the same scaling step that many
+other models need.
+
+PET-only main results:
+
+- Validation ROC-AUC: 0.900
+- Validation accuracy: 0.896
+- Test ROC-AUC: 0.549
+- Test accuracy: 0.872
+- Test sensitivity: 0.971
+- Test specificity: 0.111
+
+Simple interpretation:
+
+The PET-only model looked good on validation, but it was much weaker on the test
+set. On the test set, it predicted most patients as HPV positive. It correctly
+found 67 out of 69 HPV positive patients, but only correctly found 1 out of 9 HPV
+negative patients.
+
+This means PET features alone were not very reliable for separating both classes
+in the final test set.
+
+
+5. Clinical + PET combined experiment
+
+The combined script used:
+
+- train.csv, validation.csv, test.csv
+- HECKTOR_2025_Training_Task_3.csv
+- pet_features.csv
+
+First, the script loaded the clinical data and PET data. Then it matched them
+together using PatientID. This is called merging.
+
+The script also checked that:
+
+- PatientID values existed
+- there were no duplicated PatientID values
+- train, validation, and test splits did not overlap
+- every patient in the split files was found in the merged clinical + PET data
+
+The combined script saved the merged table here:
+
+week567_lightgbm_classification/Clinical_PET_only/Clinical_PET/merged_clinical_pet.csv
+
+The combined model used:
+
+- 8 clinical features
+- 107 PET features
+- 115 total input features
+
+The clinical categorical features were:
+
+- CenterID
+- Gender
+- Tobacco Consumption
+- Alcohol Consumption
+- Performance Status
+- Treatment
+- M-stage
+
+The target was HPV Status, encoded as 0 or 1.
+
+Clinical + PET main results:
+
+- Validation ROC-AUC: 0.975
+- Validation accuracy: 0.922
+- Test ROC-AUC: 0.857
+- Test accuracy: 0.936
+- Test sensitivity: 0.986
+- Test specificity: 0.556
+
+Simple interpretation:
+
+The combined model gave the best test accuracy and F1-score. On the test set, it
+correctly found 68 out of 69 HPV positive patients, and correctly found 5 out of
+9 HPV negative patients.
+
+However, the clinical-only model had a higher test ROC-AUC than the combined
+model. This is a useful lesson: adding more features does not automatically make
+every metric better. The combined model was very good at finding HPV positive
+patients, but the clinical-only model ranked patients slightly better overall on
+the test ROC-AUC metric.
+
+
+6. How the scripts produced the results
+
+Each script followed the same main workflow:
+
+1. Load the data files.
+2. Use PatientID to select the correct patients for train, validation, and test.
+3. Separate the input features X from the target label y.
+4. Train LightGBM using the training set.
+5. Use the trained model to predict HPV-positive probabilities on validation and test.
+6. Convert probabilities into class predictions using the 0.5 threshold.
+7. Calculate metrics.
+8. Save plots to the plots folder.
+
+The model did not directly output only "positive" or "negative". It first output
+a probability. The class label came after applying the 0.5 threshold.
+
+
+7. Meaning of the main metrics
+
+ROC-AUC:
+Measures how well the model ranks HPV positive patients higher than HPV negative
+patients. Higher is better. A value near 1 is strong, while 0.5 is close to random.
+
+Accuracy:
+The percentage of all patients classified correctly. This is easy to understand,
+but can be misleading when one class is much larger than the other.
+
+Balanced accuracy:
+Accuracy that gives more equal importance to HPV positive and HPV negative
+patients. This is useful here because the dataset is imbalanced.
+
+Sensitivity:
+How many real HPV positive patients were correctly detected.
+
+Specificity:
+How many real HPV negative patients were correctly detected.
+
+Precision:
+When the model predicted HPV positive, how often it was correct.
+
+F1-score:
+A combined score using precision and sensitivity.
+
+Brier score:
+Measures how good the predicted probabilities are. Lower is better.
+
+PR-AUC:
+Another probability-ranking metric that is useful when classes are imbalanced.
+
+Expected Calibration Error:
+Checks whether predicted probabilities match reality. For example, among patients
+given around 90 percent probability, we want around 90 percent to really be HPV
+positive. Lower is better.
+
+Confusion matrix:
+A small table showing correct and wrong predictions:
+
+- true negative: real HPV negative predicted negative
+- false positive: real HPV negative predicted positive
+- false negative: real HPV positive predicted negative
+- true positive: real HPV positive predicted positive
+
+
+8. Meaning of the saved plots
+
+Each experiment saved several PNG plots.
+
+ROC curve:
+Shows the tradeoff between detecting positives and making false positives.
+
+Precision-recall curve:
+Shows the relation between precision and sensitivity/recall.
+
+Confusion matrix heatmap:
+Shows the number of correct and wrong predictions in a visual table.
+
+Calibration curve:
+Shows whether the predicted probabilities are realistic.
+
+Probability distribution:
+Shows where the model placed patient probabilities between 0 and 1.
+
+Feature importance plot:
+Shows which input features LightGBM used most to make its decisions.
+
+SHAP summary plot:
+Shows which features had the strongest influence on predictions overall.
+
+SHAP dependence plot:
+Shows how one important feature affected the model predictions.
+
+SHAP heatmap:
+Shows feature effects across many patients.
+
+
+9. Final simple conclusion
+
+The three experiments tested what kind of information was most useful for
+predicting HPV status.
+
+Clinical-only used patient clinical information and gave strong, stable results.
+
+PET-only used only image-derived radiomics features. It performed well on
+validation but did not generalize well to the test set, especially for HPV
+negative patients.
+
+Clinical + PET combined used both types of information. It achieved the best test
+accuracy and detected almost all HPV positive patients, but clinical-only still
+had the best test ROC-AUC.
+
+For an internship report, the main message is:
+
+LightGBM learned patterns from the training patients, predicted HPV-positive
+probabilities for unseen patients, used a 0.5 threshold to convert probabilities
+into classes, and then the scripts evaluated those predictions using metrics and
+plots. The comparison showed that clinical information was very useful, PET
+features alone were weaker on the test set, and combining clinical + PET features
+gave strong results but did not improve every metric.

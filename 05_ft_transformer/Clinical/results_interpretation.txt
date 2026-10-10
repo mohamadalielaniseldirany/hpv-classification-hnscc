@@ -1,0 +1,95 @@
+Clinical-only FT-Transformer results interpretation
+
+Model setup
+- Input file: clinical_entry_preprocessed.csv
+- Target: HPV Status
+- Model: Keras FT-Transformer for tabular binary classification.
+- PatientID was not used as an input feature.
+- CenterID was explicitly ignored.
+- Input feature count: 13
+- Existing train/validation/test split files were reused.
+- No new split was created.
+- No hyperparameter tuning was performed.
+- No feature selection, feature filtering, or feature engineering was performed.
+- No scaling or normalization was applied.
+- No manual imputation was performed.
+- Fixed classification threshold: 0.5.
+
+Numerical metric interpretation
+Validation:
+- ROC-AUC: 0.951
+- Accuracy: 0.935
+- Balanced Accuracy: 0.743
+- Sensitivity: 0.986
+- Specificity: 0.500
+- Precision: 0.944
+- F1-score: 0.965
+- Confusion Matrix: [[4, 4], [1, 68]]
+- Brier Score: 0.045
+- PR-AUC: 0.994
+- Expected Calibration Error (ECE): 0.043
+
+Test:
+- ROC-AUC: 0.820
+- Accuracy: 0.936
+- Balanced Accuracy: 0.771
+- Sensitivity: 0.986
+- Specificity: 0.556
+- Precision: 0.944
+- F1-score: 0.965
+- Confusion Matrix: [[5, 4], [1, 68]]
+- Brier Score: 0.063
+- PR-AUC: 0.961
+- Expected Calibration Error (ECE): 0.062
+
+Detailed numerical metrics interpretation
+The clinical-only FT-Transformer performs strongly overall. Validation ROC-AUC is 0.951 and test ROC-AUC is 0.820. This means the clinical features contain useful information for ranking HPV-positive patients above HPV-negative patients. The test ROC-AUC is lower than validation, so the model generalizes less perfectly on unseen patients, but the test result remains clearly better than chance.
+
+Accuracy is high on both splits. Validation accuracy is 0.935, meaning 72 of 77 validation patients were classified correctly. Test accuracy is 0.936, meaning 73 of 78 test patients were classified correctly. Because the dataset is imbalanced toward HPV-positive patients, accuracy should not be interpreted alone.
+
+Balanced Accuracy gives a more realistic picture. Validation Balanced Accuracy is 0.743 and test Balanced Accuracy is 0.771. These values are lower than raw accuracy because the HPV-negative class is harder for the model. Still, the model does detect some negative cases instead of predicting every patient as HPV positive.
+
+Sensitivity is very high on both validation and test. Validation sensitivity is 0.986 and test sensitivity is 0.986. On both splits, the model missed only 1 HPV-positive patient. This means the model is very strong at identifying HPV-positive patients.
+
+Specificity is moderate. Validation specificity is 0.500, meaning 4 of 8 HPV-negative validation patients were correctly identified. Test specificity is 0.556, meaning 5 of 9 HPV-negative test patients were correctly identified. The main weakness is still false positives among HPV-negative patients.
+
+Precision and F1-score are strong. Test precision is 0.944 and test F1-score is 0.965. This means that when the model predicts HPV positive, it is usually correct, and the balance between precision and sensitivity is strong.
+
+Calibration is good for this run. Validation Brier Score is 0.045 and test Brier Score is 0.063. Validation ECE is 0.043 and test ECE is 0.062. These values show that the predicted probabilities are reasonably reliable, especially compared with weaker PET-only classification.
+
+ROC curve interpretation
+The ROC curve shows strong discrimination for the clinical-only FT-Transformer. Validation ROC-AUC is 0.951 and test ROC-AUC is 0.820. The validation curve is very strong, while the test curve shows a noticeable but acceptable drop. The model still ranks patients meaningfully on the test set.
+
+Precision-recall curve interpretation
+The PR-AUC is 0.994 on validation and 0.961 on test. These are high values, but the dataset contains many more HPV-positive patients than HPV-negative patients, so PR-AUC should be read together with Balanced Accuracy and specificity. The clinical model has useful positive-class performance and still detects some negative cases.
+
+Calibration curve and calibration table interpretation
+The 10-bin calibration tables show low calibration error. Test ECE is 0.062 and test Brier Score is 0.063, meaning the model's predicted probabilities are fairly close to the observed HPV-positive rates. Validation calibration is slightly better than test calibration, but both are acceptable for this experiment.
+
+Confusion matrix heatmap interpretation
+On validation, the model correctly identified 4 of 8 HPV-negative patients and 68 of 69 HPV-positive patients. It made 4 false positives and 1 false negative. On test, it correctly identified 5 of 9 HPV-negative patients and 68 of 69 HPV-positive patients. It made 4 false positives and 1 false negative.
+
+This means the clinical-only FT-Transformer strongly protects sensitivity while achieving moderate specificity. The remaining practical issue is the false positives among HPV-negative patients.
+
+Probability distribution plot interpretation
+The probability distribution plot should show most HPV-positive patients receiving high predicted HPV-positive probabilities. Some HPV-negative patients overlap with the positive group, which explains why specificity is not perfect. The threshold of 0.5 was fixed by rule, so this script does not tune the threshold to improve specificity.
+
+Feature importance plot interpretation
+The strongest permutation feature was M-stage_M0 with a mean ROC-AUC drop of 0.122. Other useful features included Tobacco Consumption, M-stage_Unknown, Alcohol Consumption_missing, and Performance Status. This means the clinical FT-Transformer relies mainly on tumor-stage information and clinical lifestyle/status variables.
+
+Some permutation importance values were near zero or negative. This does not mean the features were removed; the rule was to keep all features. It only means that shuffling those features did not reduce validation ROC-AUC in this trained model.
+
+SHAP summary plot interpretation
+The strongest SHAP features were M-stage_M0, Tobacco Consumption, Tobacco Consumption_missing, Alcohol Consumption_missing, Alcohol Consumption, M-stage_Unknown, Performance Status_missing, Performance Status, Age, and Treatment. This agrees with the permutation feature-importance plot: stage and smoking/alcohol-related clinical variables are the strongest explanatory signals.
+
+SHAP dependence plot interpretation
+The automatically selected dependence feature was M-stage_M0. Because this is a one-hot encoded feature, the dependence plot mainly compares patients with M-stage_M0 = 0 against patients with M-stage_M0 = 1. The feature has the largest average SHAP contribution in this model.
+
+SHAP heatmap interpretation
+The SHAP heatmap shows patient-level explanations across validation samples. M-stage_M0 appears as the dominant clinical feature, with tobacco and alcohol variables also contributing across multiple patients. The model is not controlled by one feature only, but M-stage_M0 is the clearest signal.
+
+Training loss curve interpretation
+Training loss decreased from 0.371 at epoch 1 to 0.113 at epoch 60. Validation loss decreased from 0.280 to 0.134. Training ROC-AUC increased from 0.596 to 0.974, while validation ROC-AUC ended at 0.952. This suggests the FT-Transformer learned a stable clinical signal without an extreme validation collapse.
+
+Overall conclusion
+The clinical-only FT-Transformer is a strong Week 12 baseline. It has high ROC-AUC, high sensitivity, strong precision, useful calibration, and moderate specificity. The model is clinically interpretable because the strongest signals come from M-stage and tobacco/alcohol-related clinical variables. The main limitation is that specificity remains moderate, so some HPV-negative patients are still predicted as HPV positive.
